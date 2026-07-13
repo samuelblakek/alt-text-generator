@@ -84,4 +84,17 @@ describe('jobStore', () => {
     const updatedJob = store.getJob(job.id);
     expect(updatedJob?.status).toBe('processing');
   });
+
+  it('leaves the job processing (not complete) when an image has failed', () => {
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+    ]);
+    const images = store.getImages(job.id);
+    store.updateImageStatus(images[0].id, { status: 'failed', error: 'generation failed' });
+    store.recomputeJobTotals(job.id);
+
+    const updatedJob = store.getJob(job.id);
+    expect(updatedJob?.status).toBe('processing');
+    expect(updatedJob?.failedCount).toBe(1);
+  });
 });

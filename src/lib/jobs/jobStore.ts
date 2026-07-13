@@ -181,7 +181,7 @@ export function createJobStore(db: Database.Database) {
            SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
            SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) as skipped,
-           SUM(CASE WHEN status IN ('pending', 'processing') THEN 1 ELSE 0 END) as remaining
+           SUM(CASE WHEN status IN ('pending', 'processing', 'failed') THEN 1 ELSE 0 END) as remaining
          FROM image_records WHERE job_id = ?`
       )
       .get(jobId) as { done: number; failed: number; skipped: number; remaining: number };
