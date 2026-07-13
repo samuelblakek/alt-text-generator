@@ -2781,3 +2781,18 @@ Since this repo has no BigCommerce sandbox access, hand the exported CSV to the 
 
 ---
 
+## Addendum: Task 19 (added post-implementation, after the final whole-branch review)
+
+The final whole-branch review (run after Tasks 1-17 were all individually approved) found the review page had no way to regenerate a `done` image's alt text — only `failed` images could be retried — and the spec's goal of catching Gemini misidentifying an image had no mechanism. The user decided: skip showing the original BigCommerce description (not needed), but add a "regenerate" action available on any image regardless of status, with an optional reviewer-supplied hint (e.g. "this is a stopwatch, not a mug") passed to Gemini as extra context on regeneration.
+
+Full task spec with exact code lives in the execution transcript at
+`.worktrees/impl-alt-text-generator/.superpowers/sdd/task-19-brief.md` (not duplicated here since it was authored directly as an executable brief). Summary of the change:
+
+- `ImageRecord.reviewerHint: string | null` (types, db schema + migration, jobStore `setReviewerHint`)
+- `GenerateAltTextInput.reviewerHint?: string`, included in the Gemini prompt when present
+- `processJob` passes `image.reviewerHint` through on every (re)generation
+- `PATCH /api/jobs/:id/images/:imageId` accepts `{ regenerate?: boolean; hint?: string }` in addition to its existing `editedAltText`/`retry` fields — `regenerate` resets status to `pending` and triggers reprocessing the same way `retry` does, but works from any status, not just `failed`
+- Review page: a hint input and "regenerate" button on every image, not just failed ones
+
+---
+
