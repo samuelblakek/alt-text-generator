@@ -98,4 +98,22 @@ describe('processJob', () => {
     const updatedJob = store.getJob(job.id);
     expect(updatedJob?.status).toBe('complete');
   });
+
+  it('passes the image reviewer hint through to generateAltText when present', async () => {
+    const { generateAltText } = await import('../../../src/lib/gemini/generateAltText');
+    const db = createDb(':memory:');
+    const store = createJobStore(db);
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+    ]);
+    const images = store.getImages(job.id);
+    store.setReviewerHint(images[0].id, 'this is a stopwatch, not a mug');
+
+    await processJob(job.id, { store, geminiClient: {} as any, maxConcurrency: 1 });
+
+    expect(generateAltText).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reviewerHint: 'this is a stopwatch, not a mug' })
+    );
+  });
 });

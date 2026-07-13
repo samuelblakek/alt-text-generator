@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS image_records (
   edited_alt_text TEXT,
   validation_flags TEXT,
   error TEXT,
+  reviewer_hint TEXT,
   FOREIGN KEY (job_id) REFERENCES jobs(id)
 );
 
@@ -42,6 +43,11 @@ export function createDb(dbPath: string): Database.Database {
   const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.exec(SCHEMA);
+  try {
+    db.exec('ALTER TABLE image_records ADD COLUMN reviewer_hint TEXT');
+  } catch {
+    // column already exists (either from SCHEMA on a fresh db, or a prior migration) — safe to ignore
+  }
   return db;
 }
 

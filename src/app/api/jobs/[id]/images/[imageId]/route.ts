@@ -10,7 +10,12 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string; imageId: string } }
 ): Promise<NextResponse> {
-  const body = (await request.json()) as { editedAltText?: string; retry?: boolean };
+  const body = (await request.json()) as {
+    editedAltText?: string;
+    retry?: boolean;
+    regenerate?: boolean;
+    hint?: string;
+  };
   const imageId = Number(params.imageId);
 
   const images = jobStore.getImages(params.id);
@@ -24,7 +29,11 @@ export async function PATCH(
     jobStore.recomputeValidationFlagsForSku(params.id, image.sku);
   }
 
-  if (body.retry) {
+  if (typeof body.hint === 'string') {
+    jobStore.setReviewerHint(imageId, body.hint);
+  }
+
+  if (body.retry || body.regenerate) {
     jobStore.updateImageStatus(imageId, { status: 'pending', error: null });
 
     if (!runningJobs.isRunning(params.id)) {
@@ -32,7 +41,7 @@ export async function PATCH(
       const geminiClient = createGeminiClient(process.env.GEMINI_API_KEY ?? '');
       processJob(params.id, { store: jobStore, geminiClient, maxConcurrency: 1 })
         .catch((err) => {
-          console.error(`Retry for image ${imageId} failed:`, err);
+          console.error(`Reprocess for image ${imageId} failed:`, err);
         })
         .finally(() => {
           runningJobs.finish(params.id);

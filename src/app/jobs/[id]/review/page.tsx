@@ -27,6 +27,7 @@ interface ImageRecord {
   status: 'pending' | 'processing' | 'done' | 'failed' | 'skipped';
   generatedAltText: string | null;
   editedAltText: string | null;
+  reviewerHint: string | null;
   validationFlags: ValidationFlags | null;
   error: string | null;
 }
@@ -35,6 +36,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   const [job, setJob] = useState<Job | null>(null);
   const [images, setImages] = useState<ImageRecord[]>([]);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [hints, setHints] = useState<Record<number, string>>({});
 
   const refresh = useCallback(async () => {
     const [jobRes, imagesRes] = await Promise.all([
@@ -42,7 +44,19 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
       fetch(`/api/jobs/${params.id}/images`),
     ]);
     if (jobRes.ok) setJob(await jobRes.json());
-    if (imagesRes.ok) setImages(await imagesRes.json());
+    if (imagesRes.ok) {
+      const fetchedImages: ImageRecord[] = await imagesRes.json();
+      setImages(fetchedImages);
+      setHints((prev) => {
+        const next = { ...prev };
+        for (const image of fetchedImages) {
+          if (!(image.id in next)) {
+            next[image.id] = image.reviewerHint ?? '';
+          }
+        }
+        return next;
+      });
+    }
   }, [params.id]);
 
   useEffect(() => {
@@ -65,6 +79,15 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ retry: true }),
+    });
+    refresh();
+  }
+
+  async function handleRegenerate(imageId: number) {
+    await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ regenerate: true, hint: hints[imageId] ?? '' }),
     });
     refresh();
   }
@@ -131,6 +154,15 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                     onBlur={(e) => handleEdit(image.id, e.target.value)}
                     rows={2}
                   />
+                  <input
+                    type="text"
+                    className="mt-1 w-full border p-1 text-xs"
+                    placeholder="Optional correction, e.g. this is a stopwatch, not a mug"
+                    value={hints[image.id] ?? ''}
+                    onChange={(e) =>
+                      setHints((prev) => ({ ...prev, [image.id]: e.target.value }))
+                    }
+                  />
                   <div className="mt-1 flex gap-2 text-xs">
                     <span className="text-gray-500">status: {image.status}</span>
                     {image.validationFlags && !image.validationFlags.wordCountOk && (
@@ -145,6 +177,12 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                     {image.validationFlags?.isDuplicateWithinProduct && (
                       <span className="text-amber-600">duplicate within product</span>
                     )}
+                    <button
+                      onClick={() => handleRegenerate(image.id)}
+                      className="text-blue-600 underline"
+                    >
+                      regenerate
+                    </button>
                     {image.status === 'failed' && (
                       <button onClick={() => handleRetry(image.id)} className="text-blue-600 underline">
                         retry ({image.error})

@@ -30,6 +30,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<v
               imageBuffer: buffer,
               mimeType,
               productName: image.productName,
+              reviewerHint: image.reviewerHint ?? undefined,
             })
           );
           deps.store.updateImageStatus(image.id, { status: 'done', generatedAltText: altText, error: null });

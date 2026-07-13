@@ -34,4 +34,5 @@ export interface ImageRecord {
   editedAltText: string | null;
   validationFlags: ValidationFlags | null;
   error: string | null;
+  reviewerHint: string | null;
 }

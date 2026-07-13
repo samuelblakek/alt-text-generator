@@ -21,6 +21,7 @@ vi.mock('../../../../src/lib/jobs/jobStoreSingleton', () => ({
   jobStore: {
     getImages: vi.fn(),
     setEditedAltText: vi.fn(),
+    setReviewerHint: vi.fn(),
     recomputeValidationFlagsForSku: vi.fn(),
     updateImageStatus: vi.fn(),
   },
@@ -88,5 +89,15 @@ describe('PATCH /api/jobs/:id/images/:imageId', () => {
     await PATCH(request as any, { params: { id: 'job-1', imageId: '1' } });
     expect(jobStore.updateImageStatus).toHaveBeenCalledWith(1, { status: 'pending', error: null });
     expect(processJob).not.toHaveBeenCalled();
+  });
+
+  it('saves a reviewer hint and triggers reprocessing even for a done image', async () => {
+    const request = new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ regenerate: true, hint: 'this is a stopwatch, not a mug' }),
+    });
+    await PATCH(request as any, { params: { id: 'job-1', imageId: '1' } });
+    expect(jobStore.setReviewerHint).toHaveBeenCalledWith(1, 'this is a stopwatch, not a mug');
+    expect(jobStore.updateImageStatus).toHaveBeenCalledWith(1, { status: 'pending', error: null });
   });
 });

@@ -113,4 +113,16 @@ describe('jobStore', () => {
     expect(updated.find((i) => i.id === images[0].id)?.status).toBe('pending');
     expect(updated.find((i) => i.id === images[1].id)?.status).toBe('done');
   });
+
+  it('persists a reviewer hint and returns it via getImages', () => {
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+    ]);
+    const images = store.getImages(job.id);
+    expect(images[0].reviewerHint).toBeNull();
+
+    store.setReviewerHint(images[0].id, 'this is a stopwatch, not a mug');
+    const updated = store.getImages(job.id);
+    expect(updated[0].reviewerHint).toBe('this is a stopwatch, not a mug');
+  });
 });

@@ -20,6 +20,7 @@ interface ImageRow {
   edited_alt_text: string | null;
   validation_flags: string | null;
   error: string | null;
+  reviewer_hint: string | null;
 }
 
 interface JobRow {
@@ -49,6 +50,7 @@ function rowToImageRecord(row: ImageRow): ImageRecord {
     editedAltText: row.edited_alt_text,
     validationFlags: row.validation_flags ? JSON.parse(row.validation_flags) : null,
     error: row.error,
+    reviewerHint: row.reviewer_hint ?? null,
   };
 }
 
@@ -141,6 +143,10 @@ export function createJobStore(db: Database.Database) {
     db.prepare(`UPDATE image_records SET edited_alt_text = ? WHERE id = ?`).run(editedAltText, id);
   }
 
+  function setReviewerHint(id: number, reviewerHint: string): void {
+    db.prepare(`UPDATE image_records SET reviewer_hint = ? WHERE id = ?`).run(reviewerHint, id);
+  }
+
   function setValidationFlags(id: number, flags: ValidationFlags): void {
     db.prepare(`UPDATE image_records SET validation_flags = ? WHERE id = ?`).run(
       JSON.stringify(flags),
@@ -207,6 +213,7 @@ export function createJobStore(db: Database.Database) {
     resetStaleProcessing,
     updateImageStatus,
     setEditedAltText,
+    setReviewerHint,
     recomputeValidationFlagsForSku,
     recomputeAllValidationFlags,
     recomputeJobTotals,
