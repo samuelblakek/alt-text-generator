@@ -31,9 +31,16 @@ vi.mock('../../../../src/lib/jobs/processJob', () => ({
 vi.mock('../../../../src/lib/gemini/client', () => ({
   createGeminiClient: vi.fn().mockReturnValue({}),
 }));
+vi.mock('../../../../src/lib/jobs/runningJobs', () => ({
+  isRunning: vi.fn().mockReturnValue(false),
+  start: vi.fn(),
+  finish: vi.fn(),
+}));
 
 import { PATCH } from '../../../../src/app/api/jobs/[id]/images/[imageId]/route';
 import { jobStore } from '../../../../src/lib/jobs/jobStoreSingleton';
+import { processJob } from '../../../../src/lib/jobs/processJob';
+import * as runningJobs from '../../../../src/lib/jobs/runningJobs';
 
 describe('PATCH /api/jobs/:id/images/:imageId', () => {
   beforeEach(() => {
@@ -59,11 +66,27 @@ describe('PATCH /api/jobs/:id/images/:imageId', () => {
   });
 
   it('resets status to pending and kicks off reprocessing on retry', async () => {
+    (runningJobs.isRunning as any).mockReturnValue(false);
     const request = new Request('http://localhost', {
       method: 'PATCH',
       body: JSON.stringify({ retry: true }),
     });
     await PATCH(request as any, { params: { id: 'job-1', imageId: '1' } });
     expect(jobStore.updateImageStatus).toHaveBeenCalledWith(1, { status: 'pending', error: null });
+    expect(processJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({ store: jobStore, maxConcurrency: 1 })
+    );
+  });
+
+  it('does not start a second processJob when the job is already running', async () => {
+    (runningJobs.isRunning as any).mockReturnValue(true);
+    const request = new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ retry: true }),
+    });
+    await PATCH(request as any, { params: { id: 'job-1', imageId: '1' } });
+    expect(jobStore.updateImageStatus).toHaveBeenCalledWith(1, { status: 'pending', error: null });
+    expect(processJob).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jobStore } from '../../../../../../lib/jobs/jobStoreSingleton';
 import { processJob } from '../../../../../../lib/jobs/processJob';
 import { createGeminiClient } from '../../../../../../lib/gemini/client';
+import * as runningJobs from '../../../../../../lib/jobs/runningJobs';
 
 export const runtime = 'nodejs';
 
@@ -25,10 +26,18 @@ export async function PATCH(
 
   if (body.retry) {
     jobStore.updateImageStatus(imageId, { status: 'pending', error: null });
-    const geminiClient = createGeminiClient(process.env.GEMINI_API_KEY ?? '');
-    processJob(params.id, { store: jobStore, geminiClient, maxConcurrency: 1 }).catch((err) => {
-      console.error(`Retry for image ${imageId} failed:`, err);
-    });
+
+    if (!runningJobs.isRunning(params.id)) {
+      runningJobs.start(params.id);
+      const geminiClient = createGeminiClient(process.env.GEMINI_API_KEY ?? '');
+      processJob(params.id, { store: jobStore, geminiClient, maxConcurrency: 1 })
+        .catch((err) => {
+          console.error(`Retry for image ${imageId} failed:`, err);
+        })
+        .finally(() => {
+          runningJobs.finish(params.id);
+        });
+    }
   }
 
   const updated = jobStore.getImages(params.id).find((i) => i.id === imageId);
