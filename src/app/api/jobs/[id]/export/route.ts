@@ -21,19 +21,25 @@ export async function GET(
     return NextResponse.json({ unresolvedCount: unresolved.length }, { status: 409 });
   }
 
-  const csv = buildExportCsv(
-    images
-      .filter((i) => i.status !== 'failed' && i.status !== 'pending')
-      .map((i) => ({
-        sku: i.sku,
-        productName: i.productName,
-        imageId: i.imageId,
-        imageUrl: i.imageUrl,
-        sortOrder: i.sortOrder,
-        slotIndex: i.slotIndex,
-        finalAltText: i.editedAltText ?? i.generatedAltText ?? '',
-      }))
-  );
+  let csv: string;
+  try {
+    csv = buildExportCsv(
+      images
+        .filter((i) => i.status !== 'failed' && i.status !== 'pending')
+        .map((i) => ({
+          sku: i.sku,
+          productName: i.productName,
+          imageId: i.imageId,
+          imageUrl: i.imageUrl,
+          sortOrder: i.sortOrder,
+          slotIndex: i.slotIndex,
+          finalAltText: i.editedAltText ?? i.generatedAltText ?? '',
+        }))
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to build export CSV';
+    return NextResponse.json({ error: message }, { status: 422 });
+  }
 
   return new NextResponse(csv, {
     status: 200,

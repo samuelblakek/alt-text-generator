@@ -17,9 +17,16 @@ const pendingImage = { ...doneImage, id: 2, slotIndex: 2, status: 'pending', gen
 vi.mock('../../../../src/lib/jobs/jobStoreSingleton', () => ({
   jobStore: { getJob: vi.fn(), getImages: vi.fn() },
 }));
+vi.mock('../../../../src/lib/csv/buildExport', async () => {
+  const actual = await vi.importActual<typeof import('../../../../src/lib/csv/buildExport')>(
+    '../../../../src/lib/csv/buildExport'
+  );
+  return { buildExportCsv: vi.fn(actual.buildExportCsv) };
+});
 
 import { GET } from '../../../../src/app/api/jobs/[id]/export/route';
 import { jobStore } from '../../../../src/lib/jobs/jobStoreSingleton';
+import { buildExportCsv } from '../../../../src/lib/csv/buildExport';
 
 function makeRequest(url: string): Request {
   return new Request(url);
@@ -67,5 +74,18 @@ describe('GET /api/jobs/:id/export', () => {
       params: { id: 'job-1' },
     });
     expect(response.status).toBe(200);
+  });
+
+  it('returns 422 with the error message when buildExportCsv throws (e.g. duplicate image path)', async () => {
+    (jobStore.getImages as any).mockReturnValue([doneImage]);
+    (buildExportCsv as any).mockImplementationOnce(() => {
+      throw new Error('Duplicate image path within product SKU1: /1.jpg');
+    });
+    const response = await GET(makeRequest('http://localhost/api/jobs/job-1/export') as any, {
+      params: { id: 'job-1' },
+    });
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error).toContain('Duplicate image path within product SKU1');
   });
 });
