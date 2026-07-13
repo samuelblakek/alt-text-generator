@@ -14,8 +14,9 @@ the format required by the BigCommerce bulk alt-text import app.
 
 - Turn a BigCommerce product image export into draft alt text for every
   product image, using Gemini's vision + text generation.
-- Enforce the 12 alt-text best-practice rules (see Guideline enforcement)
-  as hard guardrails, not just a suggestion in the prompt.
+- Enforce as much of the 12 alt-text best-practice rules (see Guideline
+  enforcement) as is actually determinable from the available data — not
+  all 12 are enforceable from a CSV + image bytes alone (see below).
 - Give a human a review/edit pass before anything is exported — no
   auto-publish.
 - Produce an output CSV matching the BigCommerce import app's exact column
@@ -51,12 +52,28 @@ A CSV matching the **BigCommerce bulk alt-text import app** format:
 Name, SKU, Image 1 ID, Image 1 File, Image 1 Description, Image 1 Sort Order, Image 2 ID, ...
 ```
 
-Where `Image N File` holds the full image URL. The output is built by taking
-each image's **URL as the join key**: `Image N ID`, `Image N File` (URL), and
-`Image N Sort Order` are carried through unchanged from the source data;
-only `Image N Description` is replaced with the approved alt text. Matching
-by URL (not ID, filename, or slot number) because that's the value proven
-common between the source export and the import template.
+Where `Image N File` holds the full image URL. Column width is **dynamic**,
+sized to the max number of image slots actually present in the job's data
+(the export goes up to 63 slots; the 13-slot sample import file was just a
+column-format template, not a fixed limit) — a product with 17 images must
+not be truncated to 13.
+
+**Join key: URL path, not full URL.** The export's image URLs
+(`http://www.menkind.co.uk/product_images/i/924/126105_100x100__64969.jpg`)
+and BigCommerce's live/import URLs (e.g.
+`https://store-xxxx.mybigcommerce.com/product_images/i/924/126105_100x100__64969.jpg`)
+differ in scheme and host but share the same path
+(`/product_images/i/924/126105_100x100__64969.jpg`) — BigCommerce serves the
+same CDN path structure regardless of which domain the store is viewed
+through. So matching strips scheme + host and compares the path only.
+
+In practice this tool builds its output directly from the export data (each
+`ImageRecord` already carries the export's own `imageId`, `imageUrl`, and
+`sortOrder`) rather than merging against a second file — `Image N ID`,
+`Image N File`, and `Image N Sort Order` are carried through unchanged from
+the export; only `Image N Description` is replaced with the approved alt
+text. The path-matching rule matters if/when reconciling against a live
+BigCommerce export taken through a different domain than the original.
 
 ## Architecture
 
@@ -86,55 +103,99 @@ Next.js (App Router, TypeScript) app, run locally:
 ## Pipeline
 
 1. **Upload & parse** — flatten the wide export CSV into one `ImageRecord`
-   per image slot that has a URL.
-2. **Batch process** (concurrency-limited, e.g. 5 at a time): fetch image
-   bytes from the URL → send to Gemini with the guideline system prompt +
-   product name as context → store the generated alt text → run the local
-   validator → mark `done` or `failed`.
+   per image slot that has a URL. All catalog product images are treated as
+   content-bearing (non-decorative) — there is no signal in the data to
+   determine decorative status, so this tool doesn't attempt it; a reviewer
+   can blank out an individual alt text in the review UI if they judge an
+   image decorative.
+2. **Batch process** (concurrency-limited — see rate limits below): fetch
+   image bytes from the URL → downscale to ~1024px longest edge (first frame
+   only for GIFs) → send to Gemini (`gemini-2.0-flash`, vision-capable) with
+   the guideline system prompt + product name as context → store the
+   generated alt text → run the local validator → mark `done` or `failed`.
+   The image's own **existing** `Product Image Description` is stored for
+   reference/diffing in the review UI but is never passed to Gemini as
+   context — 66% of existing descriptions in the source data are just the
+   bare product name copy-pasted, which would bias generation toward the
+   exact "echoed the title" failure the validator checks for.
 3. **Review** — grouped-by-product table; edit any alt text inline; flags
    shown next to any image that fails validation; bulk-approve; retry button
-   for failed fetches/generations.
-4. **Export** — build the import-app-format CSV by URL join, download.
+   for failed fetches/generations. If a job has any `pending`/`failed`
+   records when export is requested, the UI warns "N images unresolved —
+   export anyway?" rather than silently excluding them.
+4. **Export** — build the import-app-format CSV (dynamic slot width, see
+   Output), download.
 
 ## Guideline enforcement
 
-Two layers:
+The 12 rules split into three tiers, honestly, rather than treating all of
+them as equally enforceable:
 
-1. **System prompt** — encodes all 12 rules explicitly, including the
-   8-12 word target, banned "image of"/"picture of" openers, and
-   specificity over generic description.
-2. **Local (non-AI) validator**, run after generation, flags rather than
-   blocks:
-   - word count outside ~8-12 range
-   - starts with a banned phrase
-   - alt text identical to the bare product name (i.e. Gemini just echoed
-     the title — a common failure mode visible in the source data already)
-   - duplicate alt text across multiple images of the same product
+- **Enforced (prompt + local validator):** word count ~8-12 (soft warning if
+  outside range), no "image of"/"picture of" openers, specific rather than
+  generic (validator flags alt text identical to the bare product name),
+  avoid redundancy (validator flags duplicate alt text across images of the
+  same product), describe embedded text (prompt instruction; not separately
+  validated).
+- **Prompt-only, best-effort (not independently validated):** be
+  descriptive, include keywords naturally, write for accessibility.
+- **Not determinable from the available inputs, explicitly out of scope:**
+  contextual relevance *to the page* the image appears on (no page context
+  in a product image export), redundancy *with surrounding captions* (no
+  caption data), function-of-link description (no link/target data), and
+  performance-based iteration (no analytics feed). These remain rules a
+  human reviewer applies at their discretion, not something the tool checks.
 
 Flags surface in the review UI as warnings; export is never auto-blocked —
 the human reviewer has final say.
 
 ## Error handling
 
-- Broken/404 image URLs → `failed`, shown in review with a retry action,
-  excluded from export until resolved.
-- Gemini API errors (rate limit/timeout) → retry with backoff (up to 3
-  attempts), then `failed`.
-- Resuming a job only (re)processes `pending`/`failed` records.
+- Image fetch: follow redirects, send a browser-like User-Agent and
+  `Referer: https://www.menkind.co.uk/` (menkind.co.uk's product image host
+  may otherwise reject bare server-side requests). 404 and 403 are tracked
+  as distinct failure reasons. Both → `failed`, shown in review with a retry
+  action.
+- Gemini API errors (rate limit/timeout) → retry with backoff (1s / 4s /
+  10s, 3 attempts), then `failed`.
+- Per-image fetch and generation each have a timeout (e.g. 30s) to prevent a
+  single hung request from stalling the batch.
+- Resuming a job only (re)processes `pending`/`failed` records — `done` and
+  `skipped` are left alone.
+- Job `status` is `complete` only when every `ImageRecord` is `done` or
+  `skipped` (zero `pending`/`failed` remaining).
+
+## Rate limits & volume
+
+The real dataset is **~2,700 images** across 353 products (not a round
+"1000+"). Cost on Gemini Flash vision is trivial either way (a few dollars
+for the whole batch); the actual constraint is Gemini's **requests-per-minute
+quota**, which depends on the API tier in use. Concurrency and backoff
+should be derived from the configured tier's RPM rather than a fixed guess —
+default to a conservative concurrency (e.g. 3-5 concurrent) with the limit
+itself pulled from an env var (`GEMINI_MAX_CONCURRENCY`) so it can be raised
+if a paid tier is confirmed. On a free-tier-equivalent RPM this batch could
+take on the order of hours; that's expected and is exactly what the
+resumable job design accounts for.
 
 ## Tech stack
 
 - Next.js 14 (App Router) + TypeScript
 - `better-sqlite3` for job/image persistence
-- `@google/generative-ai` SDK, `GEMINI_API_KEY` from `.env` (same variable
-  name convention as `amazon-content-generator` and `mk-qa-generator` —
-  copied across, not re-entered)
+- `@google/generative-ai` SDK, model `gemini-2.0-flash`, `GEMINI_API_KEY`
+  from `.env` (same variable name convention as `amazon-content-generator`
+  and `mk-qa-generator` — copied across, not re-entered)
+- `sharp` for image downscaling before sending to Gemini
 - `csv-parse` / `csv-stringify` for CSV I/O
 - Tailwind CSS for the UI
 
 ## Testing
 
-- Unit tests: wide→long CSV parsing, long→wide export building (URL join),
-  the guideline validator's flag logic.
-- Manual end-to-end smoke test against a small subset (~5 products) of the
-  real export before running the full batch.
+- Unit tests: wide→long CSV parsing (including products with >13 image
+  slots), long→wide export building (dynamic slot width), URL-path
+  normalization/matching, the guideline validator's flag logic.
+- Manual end-to-end smoke test against a small subset (~5 products,
+  including at least one with >13 images) of the real export before running
+  the full batch — specifically verifying image fetch succeeds against the
+  real menkind.co.uk host (redirects/403 handling) and that the exported CSV
+  re-imports cleanly into the BigCommerce app on a test product.
