@@ -77,4 +77,25 @@ describe('processJob', () => {
     const updated = store.getImages(job.id);
     expect(updated.find((i) => i.id === images[0].id)?.generatedAltText).toBe('already done text here');
   });
+
+  it('picks up images orphaned in processing status from an interrupted prior run', async () => {
+    const db = createDb(':memory:');
+    const store = createJobStore(db);
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+    ]);
+    const images = store.getImages(job.id);
+    // Simulate a process that was killed mid-batch, leaving the image stuck in 'processing'.
+    // getPendingOrFailedImages alone would never return this image; only resetStaleProcessing
+    // (called at the start of processJob) brings it back to 'pending' so it gets reprocessed.
+    store.updateImageStatus(images[0].id, { status: 'processing' });
+
+    await processJob(job.id, { store, geminiClient: {} as any, maxConcurrency: 1 });
+
+    const updated = store.getImages(job.id);
+    expect(updated[0].status).toBe('done');
+    expect(updated[0].generatedAltText).toBe('A red widget on a white background shown here');
+    const updatedJob = store.getJob(job.id);
+    expect(updatedJob?.status).toBe('complete');
+  });
 });

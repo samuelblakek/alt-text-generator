@@ -121,6 +121,12 @@ export function createJobStore(db: Database.Database) {
     return rows.map(rowToImageRecord);
   }
 
+  function resetStaleProcessing(jobId: string): void {
+    db.prepare(
+      `UPDATE image_records SET status = 'pending' WHERE job_id = ? AND status = 'processing'`
+    ).run(jobId);
+  }
+
   function updateImageStatus(
     id: number,
     patch: { status: ImageStatus; generatedAltText?: string | null; error?: string | null }
@@ -198,6 +204,7 @@ export function createJobStore(db: Database.Database) {
     getJob,
     getImages,
     getPendingOrFailedImages,
+    resetStaleProcessing,
     updateImageStatus,
     setEditedAltText,
     recomputeValidationFlagsForSku,

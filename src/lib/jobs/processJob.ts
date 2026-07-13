@@ -15,6 +15,7 @@ export interface ProcessJobDeps {
 export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<void> {
   const concurrency = deps.maxConcurrency ?? Number(process.env.GEMINI_MAX_CONCURRENCY ?? 3);
   const limit = pLimit(concurrency);
+  deps.store.resetStaleProcessing(jobId);
   const images = deps.store.getPendingOrFailedImages(jobId);
 
   await Promise.all(

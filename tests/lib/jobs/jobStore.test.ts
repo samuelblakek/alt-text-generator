@@ -97,4 +97,20 @@ describe('jobStore', () => {
     expect(updatedJob?.status).toBe('processing');
     expect(updatedJob?.failedCount).toBe(1);
   });
+
+  it('resets images stuck in processing (from an interrupted run) back to pending', () => {
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+      { sku: 'SKU1', productName: 'Widget', imageId: '2', imageUrl: 'http://a/2.jpg', existingDescription: '', sortOrder: 1, slotIndex: 2 },
+    ]);
+    const images = store.getImages(job.id);
+    store.updateImageStatus(images[0].id, { status: 'processing' });
+    store.updateImageStatus(images[1].id, { status: 'done', generatedAltText: 'text' });
+
+    store.resetStaleProcessing(job.id);
+
+    const updated = store.getImages(job.id);
+    expect(updated.find((i) => i.id === images[0].id)?.status).toBe('pending');
+    expect(updated.find((i) => i.id === images[1].id)?.status).toBe('done');
+  });
 });
