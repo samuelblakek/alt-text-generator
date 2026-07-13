@@ -14,7 +14,7 @@ const COLUMNS_PER_SLOT = 6;
 const LEADING_COLUMNS = 3; // SKU, Product ID, Product Name
 
 export function parseExportCsv(csvText: string): ParsedImageRow[] {
-  const rows: string[][] = parse(csvText, { skip_empty_lines: true });
+  const rows: string[][] = parse(csvText, { skip_empty_lines: true, relax_column_count: true });
   const [, ...dataRows] = rows; // drop header row
   const results: ParsedImageRow[] = [];
 

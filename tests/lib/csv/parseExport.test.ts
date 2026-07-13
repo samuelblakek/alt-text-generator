@@ -57,4 +57,24 @@ describe('parseExportCsv', () => {
     const rows = parseExportCsv(`${header}\n,,\n`);
     expect(rows).toHaveLength(0);
   });
+
+  it('parses ragged rows with fewer columns than the header without throwing', () => {
+    const header = 'Product Code/SKU,Product ID,Product Name,' +
+      'Product Image File - 1,Product Image URL - 1,Product Image ID - 1,Product Image File - 1,Product Image Description - 1,Product Image Sort - 1,' +
+      'Product Image File - 2,Product Image URL - 2,Product Image ID - 2,Product Image File - 2,Product Image Description - 2,Product Image Sort - 2';
+    // Row with only one image slot (9 columns total: 3 leading + 6 per slot) instead of two
+    const row = `SKU2,2,Gadget,${makeSlot('http://a/3.jpg', '222', 'Gadget', 0)}`;
+    const rows = parseExportCsv(`${header}\n${row}\n`);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({
+      sku: 'SKU2',
+      productName: 'Gadget',
+      imageId: '222',
+      imageUrl: 'http://a/3.jpg',
+      existingDescription: 'Gadget',
+      sortOrder: 0,
+      slotIndex: 1,
+    });
+  });
 });
