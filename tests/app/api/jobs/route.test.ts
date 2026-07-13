@@ -49,4 +49,15 @@ describe('POST /api/jobs', () => {
     const response = await POST(request as any);
     expect(response.status).toBe(400);
   });
+
+  it('returns 400 (not 500) when the CSV is malformed and csv-parse throws', async () => {
+    const csv = 'SKU1,1,"Widget\n';
+    const formData = new FormData();
+    formData.set('file', makeCsvFile(csv));
+    const request = new Request('http://localhost/api/jobs', { method: 'POST', body: formData });
+    const response = await POST(request as any);
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toContain('Failed to parse CSV');
+  });
 });
