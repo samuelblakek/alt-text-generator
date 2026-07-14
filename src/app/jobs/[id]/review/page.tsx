@@ -112,6 +112,14 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   }
 
   async function handleRetry(imageId: number) {
+    const otherPendingCount =
+      job && !job.isRunning ? images.filter((i) => i.status === 'pending' && i.id !== imageId).length : 0;
+    if (otherPendingCount > 0) {
+      const proceed = window.confirm(
+        `This will also resume processing ${otherPendingCount} other pending image${otherPendingCount === 1 ? '' : 's'} in this batch. Continue?`
+      );
+      if (!proceed) return;
+    }
     try {
       await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
         method: 'PATCH',
@@ -126,6 +134,14 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   }
 
   async function handleRegenerate(imageId: number) {
+    const otherPendingCount =
+      job && !job.isRunning ? images.filter((i) => i.status === 'pending' && i.id !== imageId).length : 0;
+    if (otherPendingCount > 0) {
+      const proceed = window.confirm(
+        `This will also resume processing ${otherPendingCount} other pending image${otherPendingCount === 1 ? '' : 's'} in this batch. Continue?`
+      );
+      if (!proceed) return;
+    }
     try {
       await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
         method: 'PATCH',
@@ -239,10 +255,29 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                   Stopping…
                 </span>
               )}
-              {!job.isRunning && (
+              {!job.isRunning && job.stopRequested && (
                 <>
                   <span className="rounded-full bg-danger/10 px-5 py-2 text-sm font-medium text-danger">
                     Process Stopped
+                  </span>
+                  <button
+                    onClick={handleResume}
+                    className="rounded-full bg-brand-primary px-5 py-2 text-sm font-medium text-white shadow-[0_10px_15px_rgba(30,55,113,0.3)] transition-opacity hover:opacity-90"
+                  >
+                    Resume
+                  </button>
+                  <a
+                    href="/"
+                    className="rounded-full border border-brand-primary px-5 py-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
+                  >
+                    Start New Batch
+                  </a>
+                </>
+              )}
+              {!job.isRunning && !job.stopRequested && (
+                <>
+                  <span className="rounded-full bg-warning/10 px-5 py-2 text-sm font-medium text-warning">
+                    Finished With Errors
                   </span>
                   <button
                     onClick={handleResume}
