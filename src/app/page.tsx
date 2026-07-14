@@ -48,7 +48,7 @@ export default function UploadPage() {
       >
         <div>
           <span className="mb-2 block text-xs font-medium uppercase tracking-widest text-text-primary/50">
-            Export file
+            Upload file
           </span>
           <label className="flex cursor-pointer items-center justify-between rounded-md border border-dashed border-border-light bg-surface-muted px-4 py-3 text-sm transition-colors hover:border-brand-accent">
             <span className="truncate text-text-primary/80">
