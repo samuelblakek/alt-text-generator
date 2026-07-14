@@ -10,6 +10,8 @@ interface Job {
   doneCount: number;
   failedCount: number;
   skippedCount: number;
+  isRunning: boolean;
+  stopRequested: boolean;
 }
 
 interface ValidationFlags {
@@ -137,6 +139,26 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
     refresh();
   }
 
+  async function handleStop() {
+    try {
+      await fetch(`/api/jobs/${params.id}/stop`, { method: 'POST' });
+    } catch {
+      setConnectionError(true);
+      return;
+    }
+    refresh();
+  }
+
+  async function handleResume() {
+    try {
+      await fetch(`/api/jobs/${params.id}/process`, { method: 'POST' });
+    } catch {
+      setConnectionError(true);
+      return;
+    }
+    refresh();
+  }
+
   async function handleExport(confirm = false) {
     setExportError(null);
     let response: Response;
@@ -200,6 +222,42 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                 {resolvedCount} / {job.imageCount} done
                 {job.failedCount > 0 && `, ${job.failedCount} failed`} · {JOB_STATUS_LABELS[job.status]}
               </p>
+            </div>
+          )}
+          {job && job.status !== 'complete' && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {job.isRunning && !job.stopRequested && (
+                <button
+                  onClick={handleStop}
+                  className="rounded-full border border-danger px-5 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-white"
+                >
+                  Stop Processing
+                </button>
+              )}
+              {job.isRunning && job.stopRequested && (
+                <span className="rounded-full bg-surface-muted px-5 py-2 text-sm font-medium text-text-primary/50">
+                  Stopping…
+                </span>
+              )}
+              {!job.isRunning && (
+                <>
+                  <span className="rounded-full bg-danger/10 px-5 py-2 text-sm font-medium text-danger">
+                    Process Stopped
+                  </span>
+                  <button
+                    onClick={handleResume}
+                    className="rounded-full bg-brand-primary px-5 py-2 text-sm font-medium text-white shadow-[0_10px_15px_rgba(30,55,113,0.3)] transition-opacity hover:opacity-90"
+                  >
+                    Resume
+                  </button>
+                  <a
+                    href="/"
+                    className="rounded-full border border-brand-primary px-5 py-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
+                  >
+                    Start New Batch
+                  </a>
+                </>
+              )}
             </div>
           )}
         </div>
