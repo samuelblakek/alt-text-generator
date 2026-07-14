@@ -51,11 +51,16 @@ hardcoding new hex values in components.
 
 ## Copy conventions
 
-All UI copy — labels, pills, buttons, status text — is **sentence case**.
-This includes generated/dynamic text (e.g. per-image status pills, "Word
-count", "Same as product name"), not just static labels. Don't write
-lowercase pill/button text like `regenerate` or `banned phrase`; write
-`Regenerate`, `Banned phrase`.
+- **Inline pills and small buttons** (status pills, validation-flag pills,
+  Regenerate, Retry) are **sentence case** — one capital letter, the rest
+  lowercase. This includes generated/dynamic text (e.g. "Word count", "Same
+  as product name"). Don't write lowercase pill/button text like
+  `regenerate` or `banned phrase`; write `Regenerate`, `Banned phrase`.
+- **Primary action buttons** (large capsule CTAs — Export CSV, Upload &
+  Start Processing, and similar job-level actions like Stop Processing /
+  Resume / Start New Batch) are **Title Case**, matching the two
+  established buttons. Don't mix the two conventions within the same
+  button group.
 
 Model names shown to the user are humanized, not raw API IDs — e.g.
 "Gemini 3.5 Flash", not "gemini-3.5-flash". The raw ID is still the
