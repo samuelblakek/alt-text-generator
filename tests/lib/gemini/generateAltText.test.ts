@@ -59,4 +59,23 @@ describe('generateAltText', () => {
     const [parts] = generateContent.mock.calls[0];
     expect(parts[1].text).not.toContain('reviewer');
   });
+
+  it('uses the requested model when one is provided', async () => {
+    const generateContent = vi.fn().mockResolvedValue({
+      response: { text: () => 'A grey widget on a white background' },
+    });
+    const getGenerativeModel = vi.fn().mockReturnValue({ generateContent });
+    const fakeClient = { getGenerativeModel } as unknown as GoogleGenerativeAI;
+
+    await generateAltText(fakeClient, {
+      imageBuffer: Buffer.from([1, 2, 3]),
+      mimeType: 'image/jpeg',
+      productName: 'Grey Widget',
+      model: 'gemini-2.5-pro',
+    });
+
+    expect(getGenerativeModel).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'gemini-2.5-pro' })
+    );
+  });
 });

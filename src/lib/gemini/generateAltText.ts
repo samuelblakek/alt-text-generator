@@ -1,21 +1,21 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
 import { ALT_TEXT_SYSTEM_PROMPT } from './systemPrompt';
+import { DEFAULT_MODEL } from './models';
 
 export interface GenerateAltTextInput {
   imageBuffer: Buffer;
   mimeType: string;
   productName: string;
   reviewerHint?: string;
+  model?: string;
 }
-
-const MODEL_NAME = 'gemini-3.5-flash';
 
 export async function generateAltText(
   client: GoogleGenerativeAI,
   input: GenerateAltTextInput
 ): Promise<string> {
   const model = client.getGenerativeModel({
-    model: MODEL_NAME,
+    model: input.model ?? DEFAULT_MODEL,
     systemInstruction: ALT_TEXT_SYSTEM_PROMPT,
   });
 

@@ -114,6 +114,20 @@ describe('jobStore', () => {
     expect(updated.find((i) => i.id === images[1].id)?.status).toBe('done');
   });
 
+  it('stores the given model, defaulting to gemini-3.5-flash when not provided', () => {
+    const defaultJob = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+    ]);
+    expect(defaultJob.model).toBe('gemini-3.5-flash');
+
+    const chosenJob = store.createJob(
+      'test2.csv',
+      [{ sku: 'SKU2', productName: 'Gadget', imageId: '2', imageUrl: 'http://a/2.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 }],
+      'gemini-2.5-pro'
+    );
+    expect(chosenJob.model).toBe('gemini-2.5-pro');
+  });
+
   it('persists a reviewer hint and returns it via getImages', () => {
     const job = store.createJob('test.csv', [
       { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },

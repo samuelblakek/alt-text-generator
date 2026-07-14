@@ -16,6 +16,8 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<v
   const concurrency = deps.maxConcurrency ?? Number(process.env.GEMINI_MAX_CONCURRENCY ?? 3);
   const limit = pLimit(concurrency);
   deps.store.resetStaleProcessing(jobId);
+  const job = deps.store.getJob(jobId);
+  const model = job?.model;
   const images = deps.store.getPendingOrFailedImages(jobId);
 
   await Promise.all(
@@ -31,6 +33,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<v
               mimeType,
               productName: image.productName,
               reviewerHint: image.reviewerHint ?? undefined,
+              model,
             })
           );
           deps.store.updateImageStatus(image.id, { status: 'done', generatedAltText: altText, error: null });

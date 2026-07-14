@@ -5,6 +5,7 @@ export interface Job {
   id: string;
   createdAt: string;
   sourceFilename: string;
+  model: string;
   status: JobStatus;
   imageCount: number;
   doneCount: number;

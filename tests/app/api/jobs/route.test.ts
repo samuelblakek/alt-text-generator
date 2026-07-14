@@ -37,7 +37,8 @@ describe('POST /api/jobs', () => {
     expect(response.status).toBe(201);
     expect(jobStore.createJob).toHaveBeenCalledWith(
       'export.csv',
-      expect.arrayContaining([expect.objectContaining({ sku: 'SKU1', imageUrl: 'http://a/1.jpg' })])
+      expect.arrayContaining([expect.objectContaining({ sku: 'SKU1', imageUrl: 'http://a/1.jpg' })]),
+      'gemini-3.5-flash'
     );
   });
 
@@ -59,5 +60,43 @@ describe('POST /api/jobs', () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.error).toContain('Failed to parse CSV');
+  });
+
+  it('passes a valid requested model through to jobStore.createJob', async () => {
+    const csv =
+      'Product Code/SKU,Product ID,Product Name,Product Image File - 1,Product Image URL - 1,Product Image ID - 1,Product Image File - 1,Product Image Description - 1,Product Image Sort - 1\n' +
+      'SKU1,1,Widget,file.jpg,http://a/1.jpg,111,d/1/file.jpg,Existing desc,0\n';
+    (jobStore.createJob as any).mockReturnValue({ id: 'job-1', imageCount: 1 });
+
+    const formData = new FormData();
+    formData.set('file', makeCsvFile(csv));
+    formData.set('model', 'gemini-2.5-pro');
+    const request = new Request('http://localhost/api/jobs', { method: 'POST', body: formData });
+    await POST(request as any);
+
+    expect(jobStore.createJob).toHaveBeenCalledWith(
+      'export.csv',
+      expect.any(Array),
+      'gemini-2.5-pro'
+    );
+  });
+
+  it('falls back to the default model when an unrecognized model is requested', async () => {
+    const csv =
+      'Product Code/SKU,Product ID,Product Name,Product Image File - 1,Product Image URL - 1,Product Image ID - 1,Product Image File - 1,Product Image Description - 1,Product Image Sort - 1\n' +
+      'SKU1,1,Widget,file.jpg,http://a/1.jpg,111,d/1/file.jpg,Existing desc,0\n';
+    (jobStore.createJob as any).mockReturnValue({ id: 'job-1', imageCount: 1 });
+
+    const formData = new FormData();
+    formData.set('file', makeCsvFile(csv));
+    formData.set('model', 'not-a-real-model');
+    const request = new Request('http://localhost/api/jobs', { method: 'POST', body: formData });
+    await POST(request as any);
+
+    expect(jobStore.createJob).toHaveBeenCalledWith(
+      'export.csv',
+      expect.any(Array),
+      'gemini-3.5-flash'
+    );
   });
 });

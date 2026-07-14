@@ -116,4 +116,22 @@ describe('processJob', () => {
       expect.objectContaining({ reviewerHint: 'this is a stopwatch, not a mug' })
     );
   });
+
+  it('uses the job\'s stored model for every generateAltText call', async () => {
+    const { generateAltText } = await import('../../../src/lib/gemini/generateAltText');
+    const db = createDb(':memory:');
+    const store = createJobStore(db);
+    const job = store.createJob(
+      'test.csv',
+      [{ sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 }],
+      'gemini-2.5-pro'
+    );
+
+    await processJob(job.id, { store, geminiClient: {} as any, maxConcurrency: 1 });
+
+    expect(generateAltText).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ model: 'gemini-2.5-pro' })
+    );
+  });
 });

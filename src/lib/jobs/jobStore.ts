@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import type { ParsedImageRow } from '../csv/parseExport';
 import { validateAltText, computeDuplicateWithinProduct } from '../validator/validateAltText';
 import type { Job, ImageRecord, ValidationFlags, JobStatus, ImageStatus } from '../../types';
+import { DEFAULT_MODEL } from '../gemini/models';
 
 interface ImageRow {
   id: number;
@@ -27,6 +28,7 @@ interface JobRow {
   id: string;
   created_at: string;
   source_filename: string;
+  model: string;
   status: JobStatus;
   image_count: number;
   done_count: number;
@@ -59,6 +61,7 @@ function rowToJob(row: JobRow): Job {
     id: row.id,
     createdAt: row.created_at,
     sourceFilename: row.source_filename,
+    model: row.model,
     status: row.status,
     imageCount: row.image_count,
     doneCount: row.done_count,
@@ -68,13 +71,13 @@ function rowToJob(row: JobRow): Job {
 }
 
 export function createJobStore(db: Database.Database) {
-  function createJob(sourceFilename: string, rows: ParsedImageRow[]): Job {
+  function createJob(sourceFilename: string, rows: ParsedImageRow[], model: string = DEFAULT_MODEL): Job {
     const id = randomUUID();
     const createdAt = new Date().toISOString();
 
     const insertJob = db.prepare(
-      `INSERT INTO jobs (id, created_at, source_filename, status, image_count, done_count, failed_count, skipped_count)
-       VALUES (?, ?, ?, 'pending', ?, 0, 0, 0)`
+      `INSERT INTO jobs (id, created_at, source_filename, model, status, image_count, done_count, failed_count, skipped_count)
+       VALUES (?, ?, ?, ?, 'pending', ?, 0, 0, 0)`
     );
     const insertImage = db.prepare(
       `INSERT INTO image_records
@@ -83,7 +86,7 @@ export function createJobStore(db: Database.Database) {
     );
 
     const tx = db.transaction(() => {
-      insertJob.run(id, createdAt, sourceFilename, rows.length);
+      insertJob.run(id, createdAt, sourceFilename, model, rows.length);
       for (const row of rows) {
         insertImage.run(
           id,

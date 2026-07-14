@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
   created_at TEXT NOT NULL,
   source_filename TEXT NOT NULL,
+  model TEXT NOT NULL DEFAULT 'gemini-3.5-flash',
   status TEXT NOT NULL,
   image_count INTEGER NOT NULL DEFAULT 0,
   done_count INTEGER NOT NULL DEFAULT 0,
@@ -47,6 +48,11 @@ export function createDb(dbPath: string): Database.Database {
     db.exec('ALTER TABLE image_records ADD COLUMN reviewer_hint TEXT');
   } catch {
     // column already exists (either from SCHEMA on a fresh db, or a prior migration) — safe to ignore
+  }
+  try {
+    db.exec("ALTER TABLE jobs ADD COLUMN model TEXT NOT NULL DEFAULT 'gemini-3.5-flash'");
+  } catch {
+    // column already exists — safe to ignore
   }
   return db;
 }
