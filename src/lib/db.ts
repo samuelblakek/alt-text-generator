@@ -57,6 +57,7 @@ export function createDb(dbPath: string): Database.Database {
   return db;
 }
 
-const DEFAULT_DB_PATH = path.join(process.cwd(), 'data', 'alt-text-generator.db');
+const dataDir = process.env.DATA_DIR ?? path.join(process.cwd(), 'data');
+const DEFAULT_DB_PATH = path.join(dataDir, 'alt-text-generator.db');
 
 export const db = createDb(DEFAULT_DB_PATH);
