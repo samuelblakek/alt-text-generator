@@ -5,6 +5,7 @@ import { fetchImage } from '../images/fetchImage';
 import { downscaleImage } from '../images/downscale';
 import { generateAltText } from '../gemini/generateAltText';
 import { retryWithBackoff } from './retry';
+import { isStopRequested } from './stopRequests';
 
 export interface ProcessJobDeps {
   store: JobStore;
@@ -23,6 +24,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<v
   await Promise.all(
     images.map((image) =>
       limit(async () => {
+        if (isStopRequested(jobId)) return;
         deps.store.updateImageStatus(image.id, { status: 'processing' });
         try {
           const fetched = await fetchImage(image.imageUrl);

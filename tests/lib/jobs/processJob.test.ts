@@ -134,4 +134,30 @@ describe('processJob', () => {
       expect.objectContaining({ model: 'gemini-2.5-pro' })
     );
   });
+
+  it('stops starting new images once a stop is requested, leaving the rest pending', async () => {
+    const { generateAltText } = await import('../../../src/lib/gemini/generateAltText');
+    const { requestStop, clearStop } = await import('../../../src/lib/jobs/stopRequests');
+    const db = createDb(':memory:');
+    const store = createJobStore(db);
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+      { sku: 'SKU1', productName: 'Widget', imageId: '2', imageUrl: 'http://a/2.jpg', existingDescription: '', sortOrder: 1, slotIndex: 2 },
+    ]);
+    clearStop(job.id);
+    (generateAltText as any).mockImplementationOnce(async () => {
+      requestStop(job.id);
+      return 'A red widget on a white background shown here';
+    });
+
+    await processJob(job.id, { store, geminiClient: {} as any, maxConcurrency: 1 });
+
+    const images = store.getImages(job.id);
+    const first = images.find((i) => i.imageUrl === 'http://a/1.jpg');
+    const second = images.find((i) => i.imageUrl === 'http://a/2.jpg');
+    expect(first?.status).toBe('done');
+    expect(second?.status).toBe('pending');
+    expect(generateAltText).toHaveBeenCalledTimes(1);
+    clearStop(job.id);
+  });
 });
