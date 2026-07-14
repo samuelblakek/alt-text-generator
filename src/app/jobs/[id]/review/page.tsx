@@ -32,6 +32,14 @@ interface ImageRecord {
   error: string | null;
 }
 
+const STATUS_STYLES: Record<ImageRecord['status'], string> = {
+  pending: 'bg-surface-muted text-text-primary/60',
+  processing: 'bg-brand-accent/15 text-brand-secondary',
+  done: 'bg-brand-accent/15 text-brand-primary',
+  failed: 'bg-danger/10 text-danger',
+  skipped: 'bg-surface-muted text-text-primary/60',
+};
+
 export default function ReviewPage({ params }: { params: { id: string } }) {
   const [job, setJob] = useState<Job | null>(null);
   const [images, setImages] = useState<ImageRecord[]>([]);
@@ -121,70 +129,103 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
     return acc;
   }, {});
 
+  const resolvedCount = job ? job.doneCount + job.skippedCount : 0;
+  const progressPct = job && job.imageCount > 0 ? Math.round((resolvedCount / job.imageCount) * 100) : 0;
+
   return (
-    <main className="mx-auto max-w-5xl p-8">
-      <h1 className="text-2xl font-bold mb-2">Review Alt Text</h1>
-      {job && (
-        <p className="mb-6 text-gray-600">
-          {job.doneCount + job.skippedCount} / {job.imageCount} done
-          {job.failedCount > 0 && `, ${job.failedCount} failed`} — status: {job.status}
-        </p>
-      )}
-      <button
-        onClick={() => handleExport(false)}
-        className="mb-6 rounded bg-green-600 px-4 py-2 text-white"
-      >
-        Export CSV
-      </button>
-      {exportError && <p className="text-red-600">{exportError}</p>}
+    <main className="mx-auto max-w-5xl px-6 py-12">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="mb-2 font-heading text-2xl font-light tracking-tight text-text-primary">
+            Review <span className="font-serif italic text-brand-primary">Alt Text</span>
+          </h1>
+          {job && (
+            <div className="flex items-center gap-3">
+              <div className="h-1.5 w-40 overflow-hidden rounded-full bg-surface-muted">
+                <div
+                  className="h-full rounded-full bg-brand-accent transition-all"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <p className="text-sm text-text-primary/60">
+                {resolvedCount} / {job.imageCount} done
+                {job.failedCount > 0 && `, ${job.failedCount} failed`} · {job.status}
+              </p>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => handleExport(false)}
+          className="rounded-full bg-brand-primary px-6 py-2.5 text-sm font-medium text-white shadow-[0_10px_15px_rgba(30,55,113,0.3)] transition-opacity hover:opacity-90"
+        >
+          Export CSV
+        </button>
+      </div>
+      {exportError && <p className="mb-4 text-sm text-danger">{exportError}</p>}
 
       {Object.entries(grouped).map(([sku, productImages]) => (
-        <section key={sku} className="mb-8 border-t pt-4">
-          <h2 className="text-lg font-semibold mb-2">
-            {productImages[0].productName} <span className="text-gray-400">({sku})</span>
+        <section key={sku} className="mb-6 rounded-lg border border-border-light bg-white p-6 shadow-card">
+          <h2 className="mb-4 font-heading text-base font-medium text-text-primary">
+            {productImages[0].productName}{' '}
+            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-normal text-text-primary/50">
+              {sku}
+            </span>
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {productImages.map((image) => (
-              <div key={image.id} className="flex gap-4 items-start">
-                <img src={image.imageUrl} alt="" className="h-24 w-24 object-cover border" />
+              <div key={image.id} className="flex gap-4 border-t border-border-light pt-5 first:border-t-0 first:pt-0">
+                <img
+                  src={image.imageUrl}
+                  alt=""
+                  className="h-24 w-24 shrink-0 rounded-md border border-border-light object-cover"
+                />
                 <div className="flex-1">
                   <textarea
-                    className="w-full border p-2 text-sm"
+                    className="w-full rounded-md border border-border-light p-2.5 text-sm text-text-primary focus:border-brand-accent"
                     defaultValue={image.editedAltText ?? image.generatedAltText ?? ''}
                     onBlur={(e) => handleEdit(image.id, e.target.value)}
                     rows={2}
                   />
                   <input
                     type="text"
-                    className="mt-1 w-full border p-1 text-xs"
+                    className="mt-2 w-full rounded-md border border-dashed border-border-light bg-surface-muted p-2 text-xs text-text-primary/80 focus:border-brand-accent"
                     placeholder="Optional correction, e.g. this is a stopwatch, not a mug"
                     value={hints[image.id] ?? ''}
                     onChange={(e) =>
                       setHints((prev) => ({ ...prev, [image.id]: e.target.value }))
                     }
                   />
-                  <div className="mt-1 flex gap-2 text-xs">
-                    <span className="text-gray-500">status: {image.status}</span>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className={`rounded-full px-2 py-0.5 font-medium ${STATUS_STYLES[image.status]}`}>
+                      {image.status}
+                    </span>
                     {image.validationFlags && !image.validationFlags.wordCountOk && (
-                      <span className="text-amber-600">word count</span>
+                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">word count</span>
                     )}
                     {image.validationFlags?.bannedPhrase && (
-                      <span className="text-amber-600">banned phrase</span>
+                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">banned phrase</span>
                     )}
                     {image.validationFlags?.isDuplicateOfProductName && (
-                      <span className="text-amber-600">same as product name</span>
+                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">
+                        same as product name
+                      </span>
                     )}
                     {image.validationFlags?.isDuplicateWithinProduct && (
-                      <span className="text-amber-600">duplicate within product</span>
+                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">
+                        duplicate within product
+                      </span>
                     )}
                     <button
                       onClick={() => handleRegenerate(image.id)}
-                      className="text-blue-600 underline"
+                      className="rounded-full border border-brand-primary px-2.5 py-0.5 font-medium text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
                     >
                       regenerate
                     </button>
                     {image.status === 'failed' && (
-                      <button onClick={() => handleRetry(image.id)} className="text-blue-600 underline">
+                      <button
+                        onClick={() => handleRetry(image.id)}
+                        className="rounded-full border border-danger px-2.5 py-0.5 font-medium text-danger transition-colors hover:bg-danger hover:text-white"
+                      >
                         retry ({image.error})
                       </button>
                     )}
