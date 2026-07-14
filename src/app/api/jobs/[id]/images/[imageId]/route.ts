@@ -3,6 +3,7 @@ import { jobStore } from '../../../../../../lib/jobs/jobStoreSingleton';
 import { processJob } from '../../../../../../lib/jobs/processJob';
 import { createGeminiClient } from '../../../../../../lib/gemini/client';
 import * as runningJobs from '../../../../../../lib/jobs/runningJobs';
+import * as stopRequests from '../../../../../../lib/jobs/stopRequests';
 
 export const runtime = 'nodejs';
 
@@ -37,6 +38,7 @@ export async function PATCH(
     jobStore.updateImageStatus(imageId, { status: 'pending', error: null });
 
     if (!runningJobs.isRunning(params.id)) {
+      stopRequests.clearStop(params.id);
       runningJobs.start(params.id);
       const geminiClient = createGeminiClient(process.env.GEMINI_API_KEY ?? '');
       processJob(params.id, { store: jobStore, geminiClient, maxConcurrency: 1 })

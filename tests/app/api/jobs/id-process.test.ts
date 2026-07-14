@@ -14,11 +14,15 @@ vi.mock('../../../../src/lib/jobs/runningJobs', () => ({
   start: vi.fn(),
   finish: vi.fn(),
 }));
+vi.mock('../../../../src/lib/jobs/stopRequests', () => ({
+  clearStop: vi.fn(),
+}));
 
 import { POST } from '../../../../src/app/api/jobs/[id]/process/route';
 import { jobStore } from '../../../../src/lib/jobs/jobStoreSingleton';
 import { processJob } from '../../../../src/lib/jobs/processJob';
 import * as runningJobs from '../../../../src/lib/jobs/runningJobs';
+import * as stopRequests from '../../../../src/lib/jobs/stopRequests';
 
 describe('POST /api/jobs/:id/process', () => {
   beforeEach(() => {
@@ -48,5 +52,11 @@ describe('POST /api/jobs/:id/process', () => {
     const body = await response.json();
     expect(body.status).toBe('already_processing');
     expect(processJob).not.toHaveBeenCalled();
+  });
+
+  it('clears any prior stop request before starting processing', async () => {
+    (jobStore.getJob as any).mockReturnValue({ id: 'job-1', status: 'pending' });
+    await POST({} as any, { params: { id: 'job-1' } });
+    expect(stopRequests.clearStop).toHaveBeenCalledWith('job-1');
   });
 });
