@@ -40,6 +40,20 @@ const STATUS_STYLES: Record<ImageRecord['status'], string> = {
   skipped: 'bg-surface-muted text-text-primary/60',
 };
 
+const STATUS_LABELS: Record<ImageRecord['status'], string> = {
+  pending: 'Pending',
+  processing: 'Processing',
+  done: 'Done',
+  failed: 'Failed',
+  skipped: 'Skipped',
+};
+
+const JOB_STATUS_LABELS: Record<Job['status'], string> = {
+  pending: 'Pending',
+  processing: 'Processing',
+  complete: 'Complete',
+};
+
 export default function ReviewPage({ params }: { params: { id: string } }) {
   const [job, setJob] = useState<Job | null>(null);
   const [images, setImages] = useState<ImageRecord[]>([]);
@@ -165,8 +179,14 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
     <main className="mx-auto max-w-5xl px-6 py-12">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
+          <a
+            href="/"
+            className="mb-2 inline-block text-sm text-text-primary/60 hover:text-brand-primary hover:underline"
+          >
+            ← Upload another file
+          </a>
           <h1 className="mb-2 font-heading text-2xl font-light tracking-tight text-text-primary">
-            Review <span className="font-serif italic text-brand-primary">Alt Text</span>
+            Review Alt Text
           </h1>
           {job && (
             <div className="flex items-center gap-3">
@@ -178,7 +198,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
               </div>
               <p className="text-sm text-text-primary/60">
                 {resolvedCount} / {job.imageCount} done
-                {job.failedCount > 0 && `, ${job.failedCount} failed`} · {job.status}
+                {job.failedCount > 0 && `, ${job.failedCount} failed`} · {JOB_STATUS_LABELS[job.status]}
               </p>
             </div>
           )}
@@ -232,36 +252,36 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                   />
                   <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
                     <span className={`rounded-full px-2 py-0.5 font-medium ${STATUS_STYLES[image.status]}`}>
-                      {image.status}
+                      {STATUS_LABELS[image.status]}
                     </span>
                     {image.validationFlags && !image.validationFlags.wordCountOk && (
-                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">word count</span>
+                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Word count</span>
                     )}
                     {image.validationFlags?.bannedPhrase && (
-                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">banned phrase</span>
+                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Banned phrase</span>
                     )}
                     {image.validationFlags?.isDuplicateOfProductName && (
                       <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">
-                        same as product name
+                        Same as product name
                       </span>
                     )}
                     {image.validationFlags?.isDuplicateWithinProduct && (
                       <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">
-                        duplicate within product
+                        Duplicate within product
                       </span>
                     )}
                     <button
                       onClick={() => handleRegenerate(image.id)}
                       className="rounded-full border border-brand-primary px-2.5 py-0.5 font-medium text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
                     >
-                      regenerate
+                      Regenerate
                     </button>
                     {image.status === 'failed' && (
                       <button
                         onClick={() => handleRetry(image.id)}
                         className="rounded-full border border-danger px-2.5 py-0.5 font-medium text-danger transition-colors hover:bg-danger hover:text-white"
                       >
-                        retry ({image.error})
+                        Retry ({image.error})
                       </button>
                     )}
                   </div>

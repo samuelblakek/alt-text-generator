@@ -36,7 +36,7 @@ export default function UploadPage() {
   return (
     <main className="mx-auto max-w-xl px-6 py-12">
       <h1 className="mb-3 font-heading text-3xl font-light tracking-tight text-text-primary">
-        Alt Text <span className="font-serif italic text-brand-primary">Generator</span>
+        Alt Text Generator
       </h1>
       <p className="mb-8 leading-relaxed text-text-primary/70">
         Upload a BigCommerce product image export CSV to generate guideline-compliant alt text.
@@ -75,8 +75,8 @@ export default function UploadPage() {
             onChange={(e) => setModel(e.target.value)}
             className="block w-full rounded-md border border-border-light bg-white p-3 text-sm text-text-primary focus:border-brand-accent"
           >
-            <option value="gemini-3.5-flash">Latest (fast) — gemini-3.5-flash</option>
-            <option value="gemini-2.5-pro">Best quality (pro) — gemini-2.5-pro</option>
+            <option value="gemini-3.5-flash">Latest (fast) — Gemini 3.5 Flash</option>
+            <option value="gemini-2.5-pro">Best quality (pro) — Gemini 2.5 Pro</option>
           </select>
         </label>
 
