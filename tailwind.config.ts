@@ -18,7 +18,6 @@ const config: Config = {
       fontFamily: {
         heading: ['var(--font-heading)', 'sans-serif'],
         body: ['var(--font-body)', 'sans-serif'],
-        serif: ['var(--font-serif)', 'serif'],
       },
       borderRadius: {
         sm: '4px',
@@ -26,7 +25,6 @@ const config: Config = {
         lg: '16px',
       },
       boxShadow: {
-        capsule: '0 20px 25px -5px rgba(0,0,0,0.1)',
         card: '0 10px 15px -3px rgba(30,55,113,0.08)',
       },
       spacing: {
