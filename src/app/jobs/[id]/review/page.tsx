@@ -44,26 +44,34 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   const [job, setJob] = useState<Job | null>(null);
   const [images, setImages] = useState<ImageRecord[]>([]);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState(false);
   const [hints, setHints] = useState<Record<number, string>>({});
 
   const refresh = useCallback(async () => {
-    const [jobRes, imagesRes] = await Promise.all([
-      fetch(`/api/jobs/${params.id}/status`),
-      fetch(`/api/jobs/${params.id}/images`),
-    ]);
-    if (jobRes.ok) setJob(await jobRes.json());
-    if (imagesRes.ok) {
-      const fetchedImages: ImageRecord[] = await imagesRes.json();
-      setImages(fetchedImages);
-      setHints((prev) => {
-        const next = { ...prev };
-        for (const image of fetchedImages) {
-          if (!(image.id in next)) {
-            next[image.id] = image.reviewerHint ?? '';
+    try {
+      const [jobRes, imagesRes] = await Promise.all([
+        fetch(`/api/jobs/${params.id}/status`),
+        fetch(`/api/jobs/${params.id}/images`),
+      ]);
+      if (jobRes.ok) setJob(await jobRes.json());
+      if (imagesRes.ok) {
+        const fetchedImages: ImageRecord[] = await imagesRes.json();
+        setImages(fetchedImages);
+        setHints((prev) => {
+          const next = { ...prev };
+          for (const image of fetchedImages) {
+            if (!(image.id in next)) {
+              next[image.id] = image.reviewerHint ?? '';
+            }
           }
-        }
-        return next;
-      });
+          return next;
+        });
+      }
+      setConnectionError(false);
+    } catch {
+      // Server unreachable (e.g. a cold-starting Fly machine) — the next
+      // poll will retry automatically, so just surface a notice.
+      setConnectionError(true);
     }
   }, [params.id]);
 
@@ -74,35 +82,56 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   }, [refresh]);
 
   async function handleEdit(imageId: number, editedAltText: string) {
-    await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ editedAltText }),
-    });
+    try {
+      await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ editedAltText }),
+      });
+    } catch {
+      setConnectionError(true);
+      return;
+    }
     refresh();
   }
 
   async function handleRetry(imageId: number) {
-    await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ retry: true }),
-    });
+    try {
+      await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retry: true }),
+      });
+    } catch {
+      setConnectionError(true);
+      return;
+    }
     refresh();
   }
 
   async function handleRegenerate(imageId: number) {
-    await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ regenerate: true, hint: hints[imageId] ?? '' }),
-    });
+    try {
+      await fetch(`/api/jobs/${params.id}/images/${imageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regenerate: true, hint: hints[imageId] ?? '' }),
+      });
+    } catch {
+      setConnectionError(true);
+      return;
+    }
     refresh();
   }
 
   async function handleExport(confirm = false) {
     setExportError(null);
-    const response = await fetch(`/api/jobs/${params.id}/export${confirm ? '?confirm=true' : ''}`);
+    let response: Response;
+    try {
+      response = await fetch(`/api/jobs/${params.id}/export${confirm ? '?confirm=true' : ''}`);
+    } catch {
+      setExportError('Could not reach the server — check your connection and try again.');
+      return;
+    }
     if (response.status === 409) {
       const body = await response.json();
       const proceed = window.confirm(
@@ -162,6 +191,12 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
         </button>
       </div>
       {exportError && <p className="mb-4 text-sm text-danger">{exportError}</p>}
+      {connectionError && (
+        <p className="mb-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">
+          Couldn&apos;t reach the server — retrying automatically. If it stays offline, refresh
+          the page in a moment (a paused server can take a few seconds to wake up).
+        </p>
+      )}
 
       {Object.entries(grouped).map(([sku, productImages]) => (
         <section key={sku} className="mb-6 rounded-lg border border-border-light bg-white p-6 shadow-card">
