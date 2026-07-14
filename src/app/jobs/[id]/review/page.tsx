@@ -285,67 +285,86 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
             </span>
           </h2>
           <div className="space-y-5">
-            {productImages.map((image) => (
-              <div key={image.id} className="flex gap-4 border-t border-border-light pt-5 first:border-t-0 first:pt-0">
-                <img
-                  src={image.imageUrl}
-                  alt=""
-                  className="h-24 w-24 shrink-0 rounded-md border border-border-light object-cover"
-                />
-                <div className="flex-1">
-                  <textarea
-                    className="w-full rounded-md border border-border-light p-2.5 text-sm text-text-primary focus:border-brand-accent"
-                    defaultValue={image.editedAltText ?? image.generatedAltText ?? ''}
-                    onBlur={(e) => handleEdit(image.id, e.target.value)}
-                    rows={2}
+            {productImages.map((image) => {
+              const isQueued = image.status === 'pending' || image.status === 'processing';
+              return (
+                <div key={image.id} className="flex gap-4 border-t border-border-light pt-5 first:border-t-0 first:pt-0">
+                  <img
+                    src={image.imageUrl}
+                    alt=""
+                    className="h-24 w-24 shrink-0 rounded-md border border-border-light object-cover"
                   />
-                  <input
-                    type="text"
-                    className="mt-2 w-full rounded-md border border-dashed border-border-light bg-surface-muted p-2 text-xs text-text-primary/80 focus:border-brand-accent"
-                    placeholder="Optional correction, e.g. this is a stopwatch, not a mug"
-                    value={hints[image.id] ?? ''}
-                    onChange={(e) =>
-                      setHints((prev) => ({ ...prev, [image.id]: e.target.value }))
-                    }
-                  />
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-                    <span className={`rounded-full px-2 py-0.5 font-medium ${STATUS_STYLES[image.status]}`}>
-                      {STATUS_LABELS[image.status]}
-                    </span>
-                    {image.validationFlags && !image.validationFlags.wordCountOk && (
-                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Word count</span>
-                    )}
-                    {image.validationFlags?.bannedPhrase && (
-                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Banned phrase</span>
-                    )}
-                    {image.validationFlags?.isDuplicateOfProductName && (
-                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">
-                        Same as product name
-                      </span>
-                    )}
-                    {image.validationFlags?.isDuplicateWithinProduct && (
-                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">
-                        Duplicate within product
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handleRegenerate(image.id)}
-                      className="rounded-full border border-brand-primary px-2.5 py-0.5 font-medium text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
-                    >
-                      Regenerate
-                    </button>
-                    {image.status === 'failed' && (
-                      <button
-                        onClick={() => handleRetry(image.id)}
-                        className="rounded-full border border-danger px-2.5 py-0.5 font-medium text-danger transition-colors hover:bg-danger hover:text-white"
-                      >
-                        Retry ({image.error})
-                      </button>
+                  <div className="flex-1">
+                    {isQueued ? (
+                      <div>
+                        <span
+                          className={`mb-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[image.status]}`}
+                        >
+                          {STATUS_LABELS[image.status]}
+                        </span>
+                        <div className="h-16 w-full animate-pulse rounded-md bg-surface-muted" />
+                        <p className="mt-1.5 text-xs text-text-primary/50">
+                          {image.status === 'processing' ? 'Generating alt text…' : 'Waiting to process…'}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <textarea
+                          className="w-full rounded-md border border-border-light p-2.5 text-sm text-text-primary focus:border-brand-accent"
+                          defaultValue={image.editedAltText ?? image.generatedAltText ?? ''}
+                          onBlur={(e) => handleEdit(image.id, e.target.value)}
+                          rows={2}
+                        />
+                        <input
+                          type="text"
+                          className="mt-2 w-full rounded-md border border-dashed border-border-light bg-surface-muted p-2 text-xs text-text-primary/80 focus:border-brand-accent"
+                          placeholder="Optional correction, e.g. this is a stopwatch, not a mug"
+                          value={hints[image.id] ?? ''}
+                          onChange={(e) =>
+                            setHints((prev) => ({ ...prev, [image.id]: e.target.value }))
+                          }
+                        />
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className={`rounded-full px-2 py-0.5 font-medium ${STATUS_STYLES[image.status]}`}>
+                            {STATUS_LABELS[image.status]}
+                          </span>
+                          {image.validationFlags && !image.validationFlags.wordCountOk && (
+                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Word count</span>
+                          )}
+                          {image.validationFlags?.bannedPhrase && (
+                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Banned phrase</span>
+                          )}
+                          {image.validationFlags?.isDuplicateOfProductName && (
+                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">
+                              Same as product name
+                            </span>
+                          )}
+                          {image.validationFlags?.isDuplicateWithinProduct && (
+                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">
+                              Duplicate within product
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleRegenerate(image.id)}
+                            className="rounded-full border border-brand-primary px-2.5 py-0.5 font-medium text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
+                          >
+                            Regenerate
+                          </button>
+                          {image.status === 'failed' && (
+                            <button
+                              onClick={() => handleRetry(image.id)}
+                              className="rounded-full border border-danger px-2.5 py-0.5 font-medium text-danger transition-colors hover:bg-danger hover:text-white"
+                            >
+                              Retry ({image.error})
+                            </button>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ))}
