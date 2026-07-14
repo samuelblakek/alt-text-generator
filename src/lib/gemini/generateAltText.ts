@@ -8,7 +8,7 @@ export interface GenerateAltTextInput {
   reviewerHint?: string;
 }
 
-const MODEL_NAME = 'gemini-2.0-flash';
+const MODEL_NAME = 'gemini-3.5-flash';
 
 export async function generateAltText(
   client: GoogleGenerativeAI,

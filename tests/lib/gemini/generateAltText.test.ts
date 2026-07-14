@@ -18,7 +18,7 @@ describe('generateAltText', () => {
 
     expect(result).toBe('A red widget on a white background');
     expect(getGenerativeModel).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'gemini-2.0-flash' })
+      expect.objectContaining({ model: 'gemini-3.5-flash' })
     );
     const [parts] = generateContent.mock.calls[0];
     expect(parts[0].inlineData.mimeType).toBe('image/jpeg');
