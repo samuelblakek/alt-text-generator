@@ -211,7 +211,13 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   }, {});
 
   const resolvedCount = job ? job.doneCount + job.skippedCount : 0;
-  const progressPct = job && job.imageCount > 0 ? Math.round((resolvedCount / job.imageCount) * 100) : 0;
+  const totalImages = images.length;
+  const doneSegmentCount = images.filter((i) => i.status === 'done' || i.status === 'skipped').length;
+  const failedSegmentCount = images.filter((i) => i.status === 'failed').length;
+  const processingSegmentCount = images.filter((i) => i.status === 'processing').length;
+  const doneSegmentPct = totalImages > 0 ? (doneSegmentCount / totalImages) * 100 : 0;
+  const failedSegmentPct = totalImages > 0 ? (failedSegmentCount / totalImages) * 100 : 0;
+  const processingSegmentPct = totalImages > 0 ? (processingSegmentCount / totalImages) * 100 : 0;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -227,17 +233,43 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
             Review Alt Text
           </h1>
           {job && (
-            <div className="flex items-center gap-3">
-              <div className="h-1.5 w-40 overflow-hidden rounded-full bg-surface-muted">
-                <div
-                  className="h-full rounded-full bg-brand-accent transition-all"
-                  style={{ width: `${progressPct}%` }}
-                />
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-surface-muted">
+                  <div className="flex h-full">
+                    <div
+                      className="h-full bg-brand-primary transition-all"
+                      style={{ width: `${doneSegmentPct}%` }}
+                    />
+                    <div
+                      className="h-full bg-danger transition-all"
+                      style={{ width: `${failedSegmentPct}%` }}
+                    />
+                    <div
+                      className="h-full bg-brand-accent/60 transition-all"
+                      style={{ width: `${processingSegmentPct}%` }}
+                    />
+                  </div>
+                </div>
+                <p className="text-sm text-text-primary/60">
+                  {resolvedCount} / {job.imageCount} done
+                  {job.failedCount > 0 && `, ${job.failedCount} failed`} · {JOB_STATUS_LABELS[job.status]}
+                </p>
               </div>
-              <p className="text-sm text-text-primary/60">
-                {resolvedCount} / {job.imageCount} done
-                {job.failedCount > 0 && `, ${job.failedCount} failed`} · {JOB_STATUS_LABELS[job.status]}
-              </p>
+              <div className="mt-1.5 flex items-center gap-3 text-xs text-text-primary/50">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-2 w-2 rounded-sm bg-brand-primary" />
+                  Done
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-2 w-2 rounded-sm bg-danger" />
+                  Failed
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-2 w-2 rounded-sm bg-brand-accent/60" />
+                  Processing
+                </span>
+              </div>
             </div>
           )}
           {job && job.status !== 'complete' && (
