@@ -62,6 +62,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState(false);
   const [hints, setHints] = useState<Record<number, string>>({});
+  const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -359,7 +360,8 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                   <img
                     src={image.imageUrl}
                     alt=""
-                    className="h-24 w-24 shrink-0 rounded-md border border-border-light object-cover"
+                    className="h-24 w-24 shrink-0 cursor-pointer rounded-md border border-border-light object-cover"
+                    onClick={() => setExpandedImageUrl(image.imageUrl)}
                   />
                   <div className="flex-1">
                     {isQueued ? (
@@ -435,6 +437,26 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
           </div>
         </section>
       ))}
+      {expandedImageUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setExpandedImageUrl(null)}
+        >
+          <img
+            src={expandedImageUrl}
+            alt=""
+            className="max-h-[85vh] max-w-[85vw] rounded-md object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setExpandedImageUrl(null)}
+            className="absolute right-6 top-6 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xl text-white transition-colors hover:bg-white/20"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </main>
   );
 }
