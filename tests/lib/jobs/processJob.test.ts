@@ -135,6 +135,36 @@ describe('processJob', () => {
     );
   });
 
+  it('picks up an image regenerated mid-batch by another still-running processJob call', async () => {
+    const { generateAltText } = await import('../../../src/lib/gemini/generateAltText');
+    const db = createDb(':memory:');
+    const store = createJobStore(db);
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+      { sku: 'SKU1', productName: 'Widget', imageId: '2', imageUrl: 'http://a/2.jpg', existingDescription: '', sortOrder: 1, slotIndex: 2 },
+    ]);
+    const images = store.getImages(job.id);
+    const image2Id = images.find((i) => i.imageUrl === 'http://a/2.jpg')!.id;
+    store.updateImageStatus(image2Id, { status: 'done', generatedAltText: 'original text before regenerate' });
+
+    (generateAltText as any).mockImplementationOnce(async () => {
+      // Simulate a Regenerate click on image 2 (already 'done') happening while
+      // image 1 is still being processed by this same processJob() call.
+      store.updateImageStatus(image2Id, { status: 'pending' });
+      return 'A red widget on a white background shown here';
+    });
+
+    await processJob(job.id, { store, geminiClient: {} as any, maxConcurrency: 1 });
+
+    const updated = store.getImages(job.id);
+    const first = updated.find((i) => i.imageUrl === 'http://a/1.jpg');
+    const second = updated.find((i) => i.imageUrl === 'http://a/2.jpg');
+    expect(first?.status).toBe('done');
+    expect(second?.status).toBe('done');
+    expect(second?.generatedAltText).toBe('A red widget on a white background shown here');
+    expect(generateAltText).toHaveBeenCalledTimes(2);
+  });
+
   it('stops starting new images once a stop is requested, leaving the rest pending', async () => {
     const { generateAltText } = await import('../../../src/lib/gemini/generateAltText');
     const { requestStop, clearStop } = await import('../../../src/lib/jobs/stopRequests');

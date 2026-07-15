@@ -19,35 +19,43 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<v
   deps.store.resetStaleProcessing(jobId);
   const job = deps.store.getJob(jobId);
   const model = job?.model;
-  const images = deps.store.getPendingOrFailedImages(jobId);
 
-  await Promise.all(
-    images.map((image) =>
-      limit(async () => {
-        if (isStopRequested(jobId)) return;
-        deps.store.updateImageStatus(image.id, { status: 'processing' });
-        try {
-          const fetched = await fetchImage(image.imageUrl);
-          const { buffer, mimeType } = await downscaleImage(fetched.buffer, fetched.contentType);
-          const altText = await retryWithBackoff(() =>
-            generateAltText(deps.geminiClient, {
-              imageBuffer: buffer,
-              mimeType,
-              productName: image.productName,
-              reviewerHint: image.reviewerHint ?? undefined,
-              model,
-            })
-          );
-          deps.store.updateImageStatus(image.id, { status: 'done', generatedAltText: altText, error: null });
-        } catch (err) {
-          deps.store.updateImageStatus(image.id, {
-            status: 'failed',
-            error: err instanceof Error ? err.message : 'Unknown error',
-          });
-        }
-      })
-    )
-  );
+  const attemptedIds = new Set<number>();
+  while (true) {
+    const candidates = deps.store
+      .getPendingOrFailedImages(jobId)
+      .filter((image) => !attemptedIds.has(image.id));
+    if (candidates.length === 0) break;
+    candidates.forEach((image) => attemptedIds.add(image.id));
+
+    await Promise.all(
+      candidates.map((image) =>
+        limit(async () => {
+          if (isStopRequested(jobId)) return;
+          deps.store.updateImageStatus(image.id, { status: 'processing' });
+          try {
+            const fetched = await fetchImage(image.imageUrl);
+            const { buffer, mimeType } = await downscaleImage(fetched.buffer, fetched.contentType);
+            const altText = await retryWithBackoff(() =>
+              generateAltText(deps.geminiClient, {
+                imageBuffer: buffer,
+                mimeType,
+                productName: image.productName,
+                reviewerHint: image.reviewerHint ?? undefined,
+                model,
+              })
+            );
+            deps.store.updateImageStatus(image.id, { status: 'done', generatedAltText: altText, error: null });
+          } catch (err) {
+            deps.store.updateImageStatus(image.id, {
+              status: 'failed',
+              error: err instanceof Error ? err.message : 'Unknown error',
+            });
+          }
+        })
+      )
+    );
+  }
 
   deps.store.recomputeAllValidationFlags(jobId);
   deps.store.recomputeJobTotals(jobId);
