@@ -25,7 +25,7 @@ Menkind brand palette (exact hex, do not deviate without asking):
 |---|---|---|
 | `brand-primary` | `#1e3771` (Menkind Blue) | primary actions, headings emphasis |
 | `brand-secondary` | `#1d71b8` (Cool Blue) | secondary accents (e.g. "processing" status) |
-| `brand-accent` | `#4c90db` (Electric Blue) | focus rings, progress bar fill |
+| `brand-accent` | `#4c90db` (Electric Blue) | focus rings; progress bar "processing" segment (at 60% opacity, `bg-brand-accent/60`) |
 | `background` | `#FBFAF7` | page background |
 | `surface-muted` | `#EAF1FB` | muted surfaces (dropzones, muted pills) |
 | `border-light` | `rgba(0,0,0,0.1)` | borders, dividers |
@@ -82,6 +82,24 @@ Model names shown to the user are humanized, not raw API IDs — e.g.
   for failed/destructive).
 - **Inputs** — `rounded-md border border-border-light`, `focus:border-brand-accent`.
 - **Border radius scale** — `sm` 4px, `md` 12px, `lg` 16px.
+- **Segmented progress bar** — a `bg-surface-muted rounded-full overflow-hidden`
+  track containing sequential flex-child `<div>`s (no `rounded-full` on the
+  children — the track's own `overflow-hidden` clips them to the pill
+  shape), one per status that's "spoken for": `bg-brand-primary` (done/skipped),
+  `bg-danger` (failed), `bg-brand-accent/60` (processing). Whatever's left of
+  the track's width is implicitly "queued" — there's no separate div for it.
+  Compute segment widths from whatever data you already have client-side
+  (e.g. the fetched image list) rather than adding a backend field for it.
+  Pair with a small legend: an 8×8px `rounded-sm` colored `<span>` immediately
+  before each label (`text-xs text-text-primary/50`), not a text description
+  of the color.
+- **Lightbox/modal overlay** — a `fixed inset-0 bg-black/80` backdrop
+  (`flex items-center justify-center`, high `z-index`) whose own `onClick`
+  closes it; the enlarged content inside calls `e.stopPropagation()` on its
+  own `onClick` so clicking the content itself doesn't close the modal. Keep
+  it minimal for this tool — image-only, close via backdrop click or an
+  explicit × button, no keyboard handling or gallery navigation unless a
+  specific need justifies the extra complexity.
 
 ## Amendments (things removed since the first restyle)
 

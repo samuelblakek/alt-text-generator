@@ -27,6 +27,8 @@ Every product image needs "alt text" — a short written description that screen
 
 - Nothing is ever published without a human looking at it first.
 - If the tool is interrupted partway through a large batch, it picks up where it left off — no re-processing images already done.
+- You can pause a batch part-way through (a "Stop Processing" button) and resume it later, or abandon it and start a fresh upload instead — useful if you spot something that needs fixing before the rest finishes.
+- Click any product photo on the review page to see it larger.
 - It flags obvious problems itself (wrong length, sounds like a duplicate, still says "image of...") so reviewers know where to focus.
 
 ## Access
