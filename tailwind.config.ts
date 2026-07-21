@@ -13,6 +13,7 @@ const config: Config = {
         'surface-muted': '#EAF1FB',
         'border-light': 'rgba(0,0,0,0.1)',
         danger: '#ed1c24', // Menkind Sale
+        success: '#15803d',
         warning: '#b45309',
       },
       fontFamily: {

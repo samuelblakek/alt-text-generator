@@ -31,6 +31,7 @@ Menkind brand palette (exact hex, do not deviate without asking):
 | `border-light` | `rgba(0,0,0,0.1)` | borders, dividers |
 | `text-primary` | `#000000` | body/heading text (opacity-scaled for hierarchy, e.g. `/60`, `/70`) |
 | `danger` | `#ed1c24` (Menkind Sale) | errors, failed status, destructive actions |
+| `success` | `#15803d` | live character-counter "within limit" state |
 | `warning` | `#b45309` | validation-flag pills |
 
 All tokens live in `tailwind.config.ts`. Extend that file rather than
