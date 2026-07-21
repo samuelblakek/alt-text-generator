@@ -6,7 +6,7 @@ export function middleware(request: NextRequest): NextResponse {
   const expectedPassword = process.env.BASIC_AUTH_PASSWORD;
 
   if (!expectedUser || !expectedPassword) {
-    // No credentials configured (e.g. local dev) — skip the gate.
+    // Skip the gate when no credentials are configured (e.g. local dev).
     return NextResponse.next();
   }
 

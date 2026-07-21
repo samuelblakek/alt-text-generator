@@ -86,7 +86,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
       }
       setConnectionError(false);
     } catch {
-      // Server unreachable (e.g. a cold-starting Fly machine) — the next
+      // Server unreachable (e.g. a cold-starting Fly machine). The next
       // poll will retry automatically, so just surface a notice.
       setConnectionError(true);
     }
@@ -182,7 +182,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
     try {
       response = await fetch(`/api/jobs/${params.id}/export${confirm ? '?confirm=true' : ''}`);
     } catch {
-      setExportError('Could not reach the server — check your connection and try again.');
+      setExportError('Could not reach the server. Check your connection and try again.');
       return;
     }
     if (response.status === 409) {
@@ -339,7 +339,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
       {exportError && <p className="mb-4 text-sm text-danger">{exportError}</p>}
       {connectionError && (
         <p className="mb-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">
-          Couldn&apos;t reach the server — retrying automatically. If it stays offline, refresh
+          Couldn&apos;t reach the server. Retrying automatically. If it stays offline, refresh
           the page in a moment (a paused server can take a few seconds to wake up).
         </p>
       )}

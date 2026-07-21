@@ -75,8 +75,8 @@ export default function UploadPage() {
             onChange={(e) => setModel(e.target.value)}
             className="block w-full rounded-md border border-border-light bg-white p-3 text-sm text-text-primary focus:border-brand-accent"
           >
-            <option value="gemini-3.5-flash">Latest (fast) — Gemini 3.5 Flash</option>
-            <option value="gemini-2.5-pro">Best quality (pro) — Gemini 2.5 Pro</option>
+            <option value="gemini-3.5-flash">Latest (fast) - Gemini 3.5 Flash</option>
+            <option value="gemini-2.5-pro">Best quality (pro) - Gemini 2.5 Pro</option>
           </select>
         </label>
 
