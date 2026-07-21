@@ -84,6 +84,16 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
           }
           return next;
         });
+        setLiveLengths((prev) => {
+          const next = { ...prev };
+          for (const image of fetchedImages) {
+            const isQueued = image.status === 'pending' || image.status === 'processing';
+            if (isQueued && image.id in next) {
+              delete next[image.id];
+            }
+          }
+          return next;
+        });
       }
       setConnectionError(false);
     } catch {
