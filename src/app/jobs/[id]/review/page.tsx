@@ -412,7 +412,9 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
                           <span
                             className={`rounded-full px-2 py-0.5 font-medium ${
-                              currentLength <= 125 ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+                              currentLength >= 40 && currentLength <= 125
+                                ? 'bg-success/10 text-success'
+                                : 'bg-danger/10 text-danger'
                             }`}
                           >
                             {currentLength} / 125
@@ -420,9 +422,6 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                           <span className={`rounded-full px-2 py-0.5 font-medium ${STATUS_STYLES[image.status]}`}>
                             {STATUS_LABELS[image.status]}
                           </span>
-                          {image.validationFlags && !image.validationFlags.lengthOk && (
-                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Length</span>
-                          )}
                           {image.validationFlags?.bannedPhrase && (
                             <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Banned phrase</span>
                           )}
