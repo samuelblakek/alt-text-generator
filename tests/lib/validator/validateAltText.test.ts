@@ -2,12 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { validateAltText, computeDuplicateWithinProduct } from '../../../src/lib/validator/validateAltText';
 
 describe('validateAltText', () => {
-  it('flags word count outside the 8-12 range', () => {
-    expect(validateAltText('A red widget', 'Widget').wordCountOk).toBe(false);
+  it('flags length outside the 40-125 character range', () => {
+    expect(validateAltText('Too short', 'Widget').lengthOk).toBe(false);
     expect(
-      validateAltText('A bright red plastic widget standing upright on a plain white table', 'Widget')
-        .wordCountOk
+      validateAltText(
+        'A bright red plastic widget standing upright on a plain white table in natural light',
+        'Widget'
+      ).lengthOk
     ).toBe(true);
+    expect(
+      validateAltText(
+        'A'.repeat(126),
+        'Widget'
+      ).lengthOk
+    ).toBe(false);
   });
 
   it('flags banned openers case-insensitively', () => {

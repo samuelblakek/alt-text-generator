@@ -14,7 +14,7 @@ export interface Job {
 }
 
 export interface ValidationFlags {
-  wordCountOk: boolean;
+  lengthOk: boolean;
   bannedPhrase: boolean;
   isDuplicateOfProductName: boolean;
   isDuplicateWithinProduct: boolean;
