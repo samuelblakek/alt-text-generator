@@ -15,7 +15,7 @@ interface Job {
 }
 
 interface ValidationFlags {
-  wordCountOk: boolean;
+  lengthOk: boolean;
   bannedPhrase: boolean;
   isDuplicateOfProductName: boolean;
   isDuplicateWithinProduct: boolean;
@@ -62,6 +62,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState(false);
   const [hints, setHints] = useState<Record<number, string>>({});
+  const [liveLengths, setLiveLengths] = useState<Record<number, number>>({});
   const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -79,6 +80,16 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
           for (const image of fetchedImages) {
             if (!(image.id in next)) {
               next[image.id] = image.reviewerHint ?? '';
+            }
+          }
+          return next;
+        });
+        setLiveLengths((prev) => {
+          const next = { ...prev };
+          for (const image of fetchedImages) {
+            const isQueued = image.status === 'pending' || image.status === 'processing';
+            if (isQueued && image.id in next) {
+              delete next[image.id];
             }
           }
           return next;
@@ -355,6 +366,8 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
           <div className="space-y-5">
             {productImages.map((image) => {
               const isQueued = image.status === 'pending' || image.status === 'processing';
+              const currentLength =
+                liveLengths[image.id] ?? (image.editedAltText ?? image.generatedAltText ?? '').length;
               return (
                 <div key={image.id} className="flex gap-4 border-t border-border-light pt-5 first:border-t-0 first:pt-0">
                   <img
@@ -381,6 +394,9 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                         <textarea
                           className="w-full rounded-md border border-border-light p-2.5 text-sm text-text-primary focus:border-brand-accent"
                           defaultValue={image.editedAltText ?? image.generatedAltText ?? ''}
+                          onChange={(e) =>
+                            setLiveLengths((prev) => ({ ...prev, [image.id]: e.target.value.length }))
+                          }
                           onBlur={(e) => handleEdit(image.id, e.target.value)}
                           rows={2}
                         />
@@ -394,11 +410,18 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                           }
                         />
                         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                          <span
+                            className={`rounded-full px-2 py-0.5 font-medium ${
+                              currentLength <= 125 ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+                            }`}
+                          >
+                            {currentLength} / 125
+                          </span>
                           <span className={`rounded-full px-2 py-0.5 font-medium ${STATUS_STYLES[image.status]}`}>
                             {STATUS_LABELS[image.status]}
                           </span>
-                          {image.validationFlags && !image.validationFlags.wordCountOk && (
-                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Word count</span>
+                          {image.validationFlags && !image.validationFlags.lengthOk && (
+                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Length</span>
                           )}
                           {image.validationFlags?.bannedPhrase && (
                             <span className="rounded-full bg-warning/10 px-2 py-0.5 text-warning">Banned phrase</span>

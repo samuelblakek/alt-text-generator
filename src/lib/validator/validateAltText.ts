@@ -1,5 +1,5 @@
 export interface AltTextFlags {
-  wordCountOk: boolean;
+  lengthOk: boolean;
   bannedPhrase: boolean;
   isDuplicateOfProductName: boolean;
 }
@@ -8,9 +8,8 @@ const BANNED_OPENERS = [/^image of\b/i, /^picture of\b/i, /^photo of\b/i];
 
 export function validateAltText(altText: string, productName: string): AltTextFlags {
   const trimmed = altText.trim();
-  const wordCount = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
   return {
-    wordCountOk: wordCount >= 8 && wordCount <= 12,
+    lengthOk: trimmed.length >= 40 && trimmed.length <= 125,
     bannedPhrase: BANNED_OPENERS.some((re) => re.test(trimmed)),
     isDuplicateOfProductName: trimmed.toLowerCase() === productName.trim().toLowerCase(),
   };
