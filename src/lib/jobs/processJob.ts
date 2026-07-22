@@ -20,11 +20,23 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<v
   const job = deps.store.getJob(jobId);
   const model = job?.model;
 
+  // attemptedIds exists only to stop a permanently-failing image from being retried
+  // forever within a single run. It must not block an image a reviewer has reset back
+  // to 'pending' mid-run (via Retry/Regenerate) - those are legitimate new attempts, not
+  // the same failed attempt looping. So only use attemptedIds to exclude rows still
+  // sitting at 'failed'; a row currently 'pending' is always eligible again, regardless
+  // of whether its id was seen before.
   const attemptedIds = new Set<number>();
   while (true) {
+    // A stopped run leaves not-yet-started candidates sitting at 'pending' untouched
+    // (see the per-task check below), so once a stop is requested there is nothing left
+    // to make progress on: querying again would just find the same pending rows and,
+    // since they're never marked 'failed', spin forever. Stop the outer loop here too.
+    if (isStopRequested(jobId)) break;
+
     const candidates = deps.store
       .getPendingOrFailedImages(jobId)
-      .filter((image) => !attemptedIds.has(image.id));
+      .filter((image) => image.status !== 'failed' || !attemptedIds.has(image.id));
     if (candidates.length === 0) break;
     candidates.forEach((image) => attemptedIds.add(image.id));
 

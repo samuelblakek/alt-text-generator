@@ -14,7 +14,18 @@ export async function GET(
   }
 
   const images = jobStore.getImages(params.id);
-  const unresolved = images.filter((i) => i.status === 'pending' || i.status === 'failed');
+
+  // An image is only exportable once it is fully done AND has non-blank
+  // resolved text. Writing a blank description would overwrite the
+  // product's real alt text in BigCommerce, so anything else (pending,
+  // processing, failed, skipped, or done-but-blank) must be excluded from
+  // the CSV and counted as unresolved so the reviewer is warned.
+  const resolvedAltText = (i: (typeof images)[number]) =>
+    (i.editedAltText ?? i.generatedAltText ?? '').trim();
+  const isExportable = (i: (typeof images)[number]) =>
+    i.status === 'done' && resolvedAltText(i).length > 0;
+
+  const unresolved = images.filter((i) => !isExportable(i));
   const confirm = new URL(request.url).searchParams.get('confirm') === 'true';
 
   if (unresolved.length > 0 && !confirm) {
@@ -25,7 +36,7 @@ export async function GET(
   try {
     csv = buildExportCsv(
       images
-        .filter((i) => i.status !== 'failed' && i.status !== 'pending')
+        .filter(isExportable)
         .map((i) => ({
           sku: i.sku,
           productName: i.productName,
@@ -33,7 +44,7 @@ export async function GET(
           imageUrl: i.imageUrl,
           sortOrder: i.sortOrder,
           slotIndex: i.slotIndex,
-          finalAltText: i.editedAltText ?? i.generatedAltText ?? '',
+          finalAltText: resolvedAltText(i),
         }))
     );
   } catch (err) {

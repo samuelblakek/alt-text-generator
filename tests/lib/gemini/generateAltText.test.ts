@@ -78,4 +78,20 @@ describe('generateAltText', () => {
       expect.objectContaining({ model: 'gemini-2.5-pro' })
     );
   });
+
+  it('throws when the model returns an empty response (e.g. finishReason MAX_TOKENS)', async () => {
+    const generateContent = vi.fn().mockResolvedValue({
+      response: { text: () => '   ' },
+    });
+    const getGenerativeModel = vi.fn().mockReturnValue({ generateContent });
+    const fakeClient = { getGenerativeModel } as unknown as GoogleGenerativeAI;
+
+    await expect(
+      generateAltText(fakeClient, {
+        imageBuffer: Buffer.from([1, 2, 3]),
+        mimeType: 'image/jpeg',
+        productName: 'Red Widget',
+      })
+    ).rejects.toThrow(/empty/i);
+  });
 });

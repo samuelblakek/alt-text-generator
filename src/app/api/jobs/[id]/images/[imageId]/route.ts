@@ -36,6 +36,10 @@ export async function PATCH(
 
   if (body.retry || body.regenerate) {
     jobStore.updateImageStatus(imageId, { status: 'pending', error: null });
+    // A reviewer's prior edit must not mask freshly regenerated text - clear it so
+    // generatedAltText (written by processJob once this reset image is reprocessed)
+    // becomes the visible/exported value again.
+    jobStore.clearEditedAltText(imageId);
 
     if (!runningJobs.isRunning(params.id)) {
       stopRequests.clearStop(params.id);

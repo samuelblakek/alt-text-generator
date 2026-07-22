@@ -165,6 +165,47 @@ describe('processJob', () => {
     expect(generateAltText).toHaveBeenCalledTimes(2);
   });
 
+  it('picks up an image reset to pending mid-run even though it was already attempted this run', async () => {
+    const { generateAltText } = await import('../../../src/lib/gemini/generateAltText');
+    const db = createDb(':memory:');
+    const store = createJobStore(db);
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+      { sku: 'SKU1', productName: 'Widget', imageId: '2', imageUrl: 'http://a/2.jpg', existingDescription: '', sortOrder: 1, slotIndex: 2 },
+    ]);
+    const images = store.getImages(job.id);
+    const image1Id = images.find((i) => i.imageUrl === 'http://a/1.jpg')!.id;
+
+    // Image 1 fails on its first attempt this run, so its id lands in attemptedIds.
+    (generateAltText as any).mockRejectedValueOnce(new Error('temporary failure'));
+
+    // Simulate a reviewer clicking Retry on image 1 partway through the run: by the
+    // time the loop re-queries for candidates on its second pass, image 1 has already
+    // been attempted once this run (status 'failed', id in attemptedIds) but has since
+    // been reset back to 'pending'. It must be picked up again, not stranded forever.
+    const originalGetPendingOrFailed = store.getPendingOrFailedImages.bind(store);
+    let queryCount = 0;
+    const spy = vi.spyOn(store, 'getPendingOrFailedImages').mockImplementation((jobId: string) => {
+      queryCount += 1;
+      if (queryCount === 2) {
+        store.updateImageStatus(image1Id, { status: 'pending' });
+      }
+      return originalGetPendingOrFailed(jobId);
+    });
+
+    await processJob(job.id, { store, geminiClient: {} as any, maxConcurrency: 2 });
+
+    spy.mockRestore();
+
+    const updated = store.getImages(job.id);
+    const first = updated.find((i) => i.imageUrl === 'http://a/1.jpg');
+    const second = updated.find((i) => i.imageUrl === 'http://a/2.jpg');
+    expect(first?.status).toBe('done');
+    expect(second?.status).toBe('done');
+    const updatedJob = store.getJob(job.id);
+    expect(updatedJob?.status).toBe('complete');
+  });
+
   it('stops starting new images once a stop is requested, leaving the rest pending', async () => {
     const { generateAltText } = await import('../../../src/lib/gemini/generateAltText');
     const { requestStop, clearStop } = await import('../../../src/lib/jobs/stopRequests');

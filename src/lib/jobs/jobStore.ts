@@ -146,6 +146,10 @@ export function createJobStore(db: Database.Database) {
     db.prepare(`UPDATE image_records SET edited_alt_text = ? WHERE id = ?`).run(editedAltText, id);
   }
 
+  function clearEditedAltText(id: number): void {
+    db.prepare(`UPDATE image_records SET edited_alt_text = NULL WHERE id = ?`).run(id);
+  }
+
   function setReviewerHint(id: number, reviewerHint: string): void {
     db.prepare(`UPDATE image_records SET reviewer_hint = ? WHERE id = ?`).run(reviewerHint, id);
   }
@@ -216,6 +220,7 @@ export function createJobStore(db: Database.Database) {
     resetStaleProcessing,
     updateImageStatus,
     setEditedAltText,
+    clearEditedAltText,
     setReviewerHint,
     recomputeValidationFlagsForSku,
     recomputeAllValidationFlags,

@@ -6,3 +6,4 @@ data/
 .env
 tsconfig.tsbuildinfo
 smoke-test-export.csv
+.claude/

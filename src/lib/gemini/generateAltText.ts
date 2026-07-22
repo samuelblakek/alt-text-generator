@@ -28,5 +28,10 @@ export async function generateAltText(
     { text: promptText },
   ]);
 
-  return result.response.text().trim();
+  const text = result.response.text().trim();
+  if (!text) {
+    throw new Error('Gemini returned an empty alt text response');
+  }
+
+  return text;
 }

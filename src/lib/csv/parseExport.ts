@@ -23,7 +23,12 @@ export function parseExportCsv(csvText: string): ParsedImageRow[] {
     const productName = row[2]?.trim();
     if (!sku || !productName) continue;
 
-    const slotCount = Math.floor((row.length - LEADING_COLUMNS) / COLUMNS_PER_SLOT);
+    // Use ceil, not floor: a ragged row can be truncated mid-slot (e.g. a CSV writer
+    // dropping trailing empty fields), leaving a final slot with a real URL but missing
+    // some of its sibling columns. Flooring would silently drop that slot's image
+    // entirely. Any slot ceil admits beyond the real data is harmless, since it will
+    // simply have no URL and gets skipped by the `if (!imageUrl) continue` check below.
+    const slotCount = Math.ceil((row.length - LEADING_COLUMNS) / COLUMNS_PER_SLOT);
     for (let slot = 0; slot < slotCount; slot++) {
       const base = LEADING_COLUMNS + slot * COLUMNS_PER_SLOT;
       const imageUrl = row[base + 1]?.trim();

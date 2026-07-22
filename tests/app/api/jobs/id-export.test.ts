@@ -13,6 +13,30 @@ const doneImage = {
   editedAltText: null,
 };
 const pendingImage = { ...doneImage, id: 2, slotIndex: 2, status: 'pending', generatedAltText: null };
+const processingImage = {
+  ...doneImage,
+  id: 3,
+  slotIndex: 3,
+  status: 'processing',
+  generatedAltText: null,
+  editedAltText: null,
+};
+const blankDoneImage = {
+  ...doneImage,
+  id: 4,
+  slotIndex: 4,
+  status: 'done',
+  generatedAltText: '   ',
+  editedAltText: null,
+};
+const untrimmedDoneImage = {
+  ...doneImage,
+  id: 5,
+  slotIndex: 5,
+  status: 'done',
+  generatedAltText: '  A trimmed widget  ',
+  editedAltText: null,
+};
 
 vi.mock('../../../../src/lib/jobs/jobStoreSingleton', () => ({
   jobStore: { getJob: vi.fn(), getImages: vi.fn() },
@@ -74,6 +98,53 @@ describe('GET /api/jobs/:id/export', () => {
       params: { id: 'job-1' },
     });
     expect(response.status).toBe(200);
+  });
+
+  it('treats a processing image as unresolved and excludes it from the CSV', async () => {
+    (jobStore.getImages as any).mockReturnValue([doneImage, processingImage]);
+    const response = await GET(makeRequest('http://localhost/api/jobs/job-1/export') as any, {
+      params: { id: 'job-1' },
+    });
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.unresolvedCount).toBe(1);
+
+    const confirmedResponse = await GET(
+      makeRequest('http://localhost/api/jobs/job-1/export?confirm=true') as any,
+      { params: { id: 'job-1' } }
+    );
+    const text = await confirmedResponse.text();
+    const rows = text.trim().split('\n');
+    expect(rows.length).toBe(2); // header + the one done product row, only one image slot
+  });
+
+  it('treats a done image with blank/whitespace-only text as unresolved and excludes it from the CSV', async () => {
+    (jobStore.getImages as any).mockReturnValue([doneImage, blankDoneImage]);
+    const response = await GET(makeRequest('http://localhost/api/jobs/job-1/export') as any, {
+      params: { id: 'job-1' },
+    });
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.unresolvedCount).toBe(1);
+
+    const confirmedResponse = await GET(
+      makeRequest('http://localhost/api/jobs/job-1/export?confirm=true') as any,
+      { params: { id: 'job-1' } }
+    );
+    const text = await confirmedResponse.text();
+    const rows = text.trim().split('\n');
+    expect(rows.length).toBe(2); // header + the one done product row, blank one excluded
+  });
+
+  it('exports a normal done image with its alt text trimmed', async () => {
+    (jobStore.getImages as any).mockReturnValue([untrimmedDoneImage]);
+    const response = await GET(makeRequest('http://localhost/api/jobs/job-1/export') as any, {
+      params: { id: 'job-1' },
+    });
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).toContain('A trimmed widget');
+    expect(text).not.toContain('  A trimmed widget  ');
   });
 
   it('returns 422 with the error message when buildExportCsv throws (e.g. duplicate image path)', async () => {
