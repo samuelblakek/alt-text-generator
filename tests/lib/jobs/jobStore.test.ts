@@ -139,4 +139,32 @@ describe('jobStore', () => {
     const updated = store.getImages(job.id);
     expect(updated[0].reviewerHint).toBe('this is a stopwatch, not a mug');
   });
+
+  it('clears a previously saved edited alt text', () => {
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+    ]);
+    const images = store.getImages(job.id);
+    store.setEditedAltText(images[0].id, 'A reviewer-edited description');
+    expect(store.getImages(job.id)[0].editedAltText).toBe('A reviewer-edited description');
+
+    store.clearEditedAltText(images[0].id);
+
+    expect(store.getImages(job.id)[0].editedAltText).toBeNull();
+  });
+
+  it('leaves generated alt text untouched when clearing edited alt text', () => {
+    const job = store.createJob('test.csv', [
+      { sku: 'SKU1', productName: 'Widget', imageId: '1', imageUrl: 'http://a/1.jpg', existingDescription: '', sortOrder: 0, slotIndex: 1 },
+    ]);
+    const images = store.getImages(job.id);
+    store.updateImageStatus(images[0].id, { status: 'done', generatedAltText: 'Original generated text' });
+    store.setEditedAltText(images[0].id, 'A reviewer-edited description');
+
+    store.clearEditedAltText(images[0].id);
+
+    const updated = store.getImages(job.id)[0];
+    expect(updated.editedAltText).toBeNull();
+    expect(updated.generatedAltText).toBe('Original generated text');
+  });
 });

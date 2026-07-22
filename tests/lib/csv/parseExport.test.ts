@@ -58,6 +58,27 @@ describe('parseExportCsv', () => {
     expect(rows).toHaveLength(0);
   });
 
+  it('keeps a trailing image slot that is missing its ID/description/sort columns but has a URL', () => {
+    const header = 'Product Code/SKU,Product ID,Product Name,' +
+      'Product Image File - 1,Product Image URL - 1,Product Image ID - 1,Product Image File - 1,Product Image Description - 1,Product Image Sort - 1,' +
+      'Product Image File - 2,Product Image URL - 2,Product Image ID - 2,Product Image File - 2,Product Image Description - 2,Product Image Sort - 2';
+    // Second slot only has its File and URL columns present (2 of 6), e.g. because a
+    // CSV writer trimmed trailing empty fields. The URL is real and must not be dropped.
+    const row = `SKU3,3,Doohickey,${makeSlot('http://a/4.jpg', '333', 'Doohickey', 0)},file2.jpg,http://a/5.jpg`;
+    const rows = parseExportCsv(`${header}\n${row}\n`);
+
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toEqual({
+      sku: 'SKU3',
+      productName: 'Doohickey',
+      imageId: '',
+      imageUrl: 'http://a/5.jpg',
+      existingDescription: '',
+      sortOrder: 1,
+      slotIndex: 2,
+    });
+  });
+
   it('parses ragged rows with fewer columns than the header without throwing', () => {
     const header = 'Product Code/SKU,Product ID,Product Name,' +
       'Product Image File - 1,Product Image URL - 1,Product Image ID - 1,Product Image File - 1,Product Image Description - 1,Product Image Sort - 1,' +

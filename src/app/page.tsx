@@ -20,17 +20,22 @@ export default function UploadPage() {
     formData.set('file', file);
     formData.set('model', model);
 
-    const response = await fetch('/api/jobs', { method: 'POST', body: formData });
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      setError(body.error ?? 'Upload failed');
-      setUploading(false);
-      return;
-    }
+    try {
+      const response = await fetch('/api/jobs', { method: 'POST', body: formData });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setError(body.error ?? 'Upload failed');
+        return;
+      }
 
-    const job = await response.json();
-    await fetch(`/api/jobs/${job.id}/process`, { method: 'POST' });
-    router.push(`/jobs/${job.id}/review`);
+      const job = await response.json();
+      await fetch(`/api/jobs/${job.id}/process`, { method: 'POST' });
+      router.push(`/jobs/${job.id}/review`);
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (

@@ -21,6 +21,7 @@ vi.mock('../../../../src/lib/jobs/jobStoreSingleton', () => ({
   jobStore: {
     getImages: vi.fn(),
     setEditedAltText: vi.fn(),
+    clearEditedAltText: vi.fn(),
     setReviewerHint: vi.fn(),
     recomputeValidationFlagsForSku: vi.fn(),
     updateImageStatus: vi.fn(),
@@ -70,6 +71,15 @@ describe('PATCH /api/jobs/:id/images/:imageId', () => {
     expect(jobStore.recomputeValidationFlagsForSku).toHaveBeenCalledWith('job-1', 'SKU1');
   });
 
+  it('does not clear edited alt text on a plain edit save', async () => {
+    const request = new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ editedAltText: 'A blue widget on a shelf' }),
+    });
+    await PATCH(request as any, { params: { id: 'job-1', imageId: '1' } });
+    expect(jobStore.clearEditedAltText).not.toHaveBeenCalled();
+  });
+
   it('resets status to pending and kicks off reprocessing on retry', async () => {
     (runningJobs.isRunning as any).mockReturnValue(false);
     const request = new Request('http://localhost', {
@@ -82,6 +92,26 @@ describe('PATCH /api/jobs/:id/images/:imageId', () => {
       'job-1',
       expect.objectContaining({ store: jobStore, maxConcurrency: 1 })
     );
+  });
+
+  it('clears any previously saved edited alt text on retry, so fresh generated text is not masked', async () => {
+    (runningJobs.isRunning as any).mockReturnValue(false);
+    const request = new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ retry: true }),
+    });
+    await PATCH(request as any, { params: { id: 'job-1', imageId: '1' } });
+    expect(jobStore.clearEditedAltText).toHaveBeenCalledWith(1);
+  });
+
+  it('clears any previously saved edited alt text on regenerate, so fresh generated text is not masked', async () => {
+    (runningJobs.isRunning as any).mockReturnValue(false);
+    const request = new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ regenerate: true }),
+    });
+    await PATCH(request as any, { params: { id: 'job-1', imageId: '1' } });
+    expect(jobStore.clearEditedAltText).toHaveBeenCalledWith(1);
   });
 
   it('does not start a second processJob when the job is already running', async () => {

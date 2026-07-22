@@ -1,7 +1,7 @@
 // src/app/jobs/[id]/review/page.tsx
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 interface Job {
   id: string;
@@ -64,6 +64,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   const [hints, setHints] = useState<Record<number, string>>({});
   const [liveLengths, setLiveLengths] = useState<Record<number, number>>({});
   const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
+  const initialAltTextRef = useRef<Record<number, string>>({});
 
   const refresh = useCallback(async () => {
     try {
@@ -124,11 +125,13 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   }
 
   async function handleRetry(imageId: number) {
-    const otherPendingCount =
-      job && !job.isRunning ? images.filter((i) => i.status === 'pending' && i.id !== imageId).length : 0;
-    if (otherPendingCount > 0) {
+    const otherUnresolvedCount =
+      job && !job.isRunning
+        ? images.filter((i) => (i.status === 'pending' || i.status === 'failed') && i.id !== imageId).length
+        : 0;
+    if (otherUnresolvedCount > 0) {
       const proceed = window.confirm(
-        `This will also resume processing ${otherPendingCount} other pending image${otherPendingCount === 1 ? '' : 's'} in this batch. Continue?`
+        `This will also resume processing ${otherUnresolvedCount} other unresolved image${otherUnresolvedCount === 1 ? '' : 's'} in this batch. Continue?`
       );
       if (!proceed) return;
     }
@@ -146,11 +149,13 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   }
 
   async function handleRegenerate(imageId: number) {
-    const otherPendingCount =
-      job && !job.isRunning ? images.filter((i) => i.status === 'pending' && i.id !== imageId).length : 0;
-    if (otherPendingCount > 0) {
+    const otherUnresolvedCount =
+      job && !job.isRunning
+        ? images.filter((i) => (i.status === 'pending' || i.status === 'failed') && i.id !== imageId).length
+        : 0;
+    if (otherUnresolvedCount > 0) {
       const proceed = window.confirm(
-        `This will also resume processing ${otherPendingCount} other pending image${otherPendingCount === 1 ? '' : 's'} in this batch. Continue?`
+        `This will also resume processing ${otherUnresolvedCount} other unresolved image${otherUnresolvedCount === 1 ? '' : 's'} in this batch. Continue?`
       );
       if (!proceed) return;
     }
@@ -199,7 +204,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
     if (response.status === 409) {
       const body = await response.json();
       const proceed = window.confirm(
-        `${body.unresolvedCount} images are still pending or failed. Export anyway?`
+        `${body.unresolvedCount} images are not ready and will be excluded from the export. Export anyway?`
       );
       if (proceed) await handleExport(true);
       return;
@@ -366,8 +371,14 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
           <div className="space-y-5">
             {productImages.map((image) => {
               const isQueued = image.status === 'pending' || image.status === 'processing';
+              if (isQueued) {
+                delete initialAltTextRef.current[image.id];
+              } else if (!(image.id in initialAltTextRef.current)) {
+                initialAltTextRef.current[image.id] = image.editedAltText ?? image.generatedAltText ?? '';
+              }
+              const initialAltText = initialAltTextRef.current[image.id] ?? '';
               const currentLength =
-                liveLengths[image.id] ?? (image.editedAltText ?? image.generatedAltText ?? '').length;
+                liveLengths[image.id] ?? (image.editedAltText ?? image.generatedAltText ?? '').trim().length;
               return (
                 <div key={image.id} className="flex gap-4 border-t border-border-light pt-5 first:border-t-0 first:pt-0">
                   <img
@@ -393,11 +404,16 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                       <>
                         <textarea
                           className="w-full rounded-md border border-border-light p-2.5 text-sm text-text-primary focus:border-brand-accent"
-                          defaultValue={image.editedAltText ?? image.generatedAltText ?? ''}
+                          defaultValue={initialAltText}
                           onChange={(e) =>
-                            setLiveLengths((prev) => ({ ...prev, [image.id]: e.target.value.length }))
+                            setLiveLengths((prev) => ({ ...prev, [image.id]: e.target.value.trim().length }))
                           }
-                          onBlur={(e) => handleEdit(image.id, e.target.value)}
+                          onBlur={(e) => {
+                            const value = e.target.value;
+                            if (value === initialAltTextRef.current[image.id]) return;
+                            initialAltTextRef.current[image.id] = value;
+                            handleEdit(image.id, value);
+                          }}
                           rows={2}
                         />
                         <input
